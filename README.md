@@ -11,7 +11,7 @@ https://www.continuum.io/downloads
 
 
 Method 2:
-1: download and install the latest python 3.6.*
+1: download and install the latest python 3.6
 2: sudo easy_install pip
 3: pip install numpy
 4: pip install pandas
