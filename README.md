@@ -5,16 +5,16 @@
 
 Before Running the scripts,please have python packages numpy and pandas installed.
 
-Method 1:
+#### Method 1:
 please download the 64bit python 3.6 version of anaconda, which contains python and all packages we need to run xxdb api python scripts
 https://www.continuum.io/downloads
 
 
-Method 2:
-1: download and install the latest python 3.6
-2: sudo easy_install pip
-3: pip install numpy
-4: pip install pandas
+#### Method 2:
+1: download and install the latest python 3.6.*
+2: sudo easy_install pip  
+3: pip install numpy  
+4: pip install pandas  
 
 
 Then, please go to our python api folder and install the package through the following command:
