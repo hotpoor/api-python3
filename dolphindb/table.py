@@ -6,7 +6,7 @@ import copy
 import builtins
 import re
 import inspect
-
+import unicodedata
 
 def _generate_tablename():
     return "T" + uuid.uuid4().hex[:8]
@@ -19,8 +19,11 @@ def _getFuncName(f):
         return f.__name__
 
 
+def normalize_caseless(text):
+    return unicodedata.normalize("NFKD", text.casefold())
+
 class Table(object):
-    def __init__(self, data=None, dbPath=None, tableAliasName=None, partitions=[], inMem=False, schemaInited=False,
+    def __init__(self, dbPath=None, data=None,  tableAliasName=None, partitions=[], inMem=False, schemaInited=False,
                  s=None):
         self.__having = None
         self.__top = None
@@ -131,10 +134,13 @@ class Table(object):
         # colDefs = schema.get('colDefs')  # type: DataFrame
         self.vecs = {}
         self.__columns = colNames
-        if colNames is not None and isinstance(colNames, str):
-            for colName in colNames:
-                self.vecs[colName] = Vector(name=colName, tableName=self.__tableName, s=self.__session)
-        self._setSelect(list(self.vecs.keys()))
+        if colNames is not None:
+            if isinstance(colNames, list):
+                for colName in colNames:
+                    self.vecs[colName] = Vector(name=colName, tableName=self.__tableName, s=self.__session)
+                self._setSelect(colNames)
+            else:
+                self._setSelect(colNames)
 
     def __getattr__(self, item):
         vecs = object.__getattribute__(self, "vecs")
@@ -467,21 +473,26 @@ class Table(object):
         return delTable
 
     def drop(self, cols):
-        if cols is not None and len(cols):
+        if cols is not None and len(cols) and isinstance(cols, list):
             runstr = '{table}.drop!([{cols}])'
             fmtDict = dict()
             fmtDict['table'] = self.tableName()
             fmtDict['cols'] = '"' + '","'.join(cols) + '"'
             query = re.sub(' +', ' ', runstr.format(**fmtDict).strip())
-            # print(query)
-            # print(self.__select)
             for col in cols:
-                # print(col)
-                # print(col in self.__select)
-                if col in self.__select:
-                    self.__select.remove(col)
+               for colName in self.__select:
+                   if col.lower() == colName.lower():
+                       self.__select.remove(colName)
             self.__session.run(query)
-
+        else:
+            runstr = '{table}.drop!([{cols}])'
+            fmtDict = dict()
+            fmtDict['table'] = self.tableName()
+            fmtDict['cols'] ="'"+cols + "'"
+            query = re.sub(' +', ' ', runstr.format(**fmtDict).strip())
+            for colName in self.__select:
+                if cols.lower() == colName.lower():
+                    self.__select.remove(colName)
         return self
 
     def executeAs(self, newTableName):
@@ -518,9 +529,7 @@ class Table(object):
         if not len(myY) or not len(myX):
             raise ValueError("Invalid Input data")
         schema = self.__session.run("schema(%s)" % self.__tableName)
-        print(schema)
-        # if 'partitionColumnName' in schema and schema['partitionColumnName']:
-        if True:
+        if 'partitionColumnName' in schema and schema['partitionColumnName']:
             dsstr = "sqlDS(<SQLSQL>)".replace('SQLSQL', self.showSQL()).replace('select select', 'select')
             runstr = "olsEx({ds},{Y},{X},{INTERCEPT},2)"
             fmtDict = dict()
@@ -530,7 +539,6 @@ class Table(object):
             fmtDict['ds'] = dsstr
             fmtDict['INTERCEPT'] = str(INTERCEPT).lower()
             query = re.sub(' +', ' ', runstr.format(**fmtDict).strip())
-            print(query)
             return self.__session.run(query)
         else:
             runstr = "z=exec ols({Y},{X},{INTERCEPT},2) from {table}"
@@ -540,7 +548,6 @@ class Table(object):
             fmtDict['X'] = str(myX)
             fmtDict['INTERCEPT'] = str(INTERCEPT).lower()
             query = re.sub(' +', ' ', runstr.format(**fmtDict).strip())
-            print(query)
             return self.__session.run(query)
 
     def toDF(self):
@@ -812,16 +819,16 @@ class TableGroupby(object):
             selectCols = [_getFuncName(f) + '(' + x + ')' for x in selectCols for f in func if x not in self.__groupBys]
         elif isinstance(func, dict):
             funcDict = {}
-            for colName, f in func.items():
+            for colName, f in func.iteritems():
                 funcDict[colName] = f if isinstance(f, list) else [f]
-            selectCols = [_getFuncName(f) + '(' + x + ')' for x, funcs in funcDict.items() for f in funcs if
-                          x not in self.__groupBys]
+            # selectCols = [_getFuncName(f) + '(' + x + ')' for x, funcs in funcDict.iteritems() for f in funcs if x not in self.__groupBys]
+            selectCols = [_getFuncName(f) + '(' + x + ')' for x, funcs in funcDict.iteritems() for f in funcs ]
         elif isinstance(func, str):
-            selectCols = [_getFuncName(func) + '(' + x + ')' for x in selectCols if x not in self.__groupBys]
+            # selectCols = [_getFuncName(func) + '(' + x + ')' for x in selectCols if x not in self.__groupBys]
+            selectCols = [_getFuncName(func) + '(' + x + ')' for x in selectCols]
         else:
-            raise RuntimeError(
-                'invalid func format, func: aggregate function name or a list of aggregate function names'
-                ' or a dict of column label/expression->func')
+            raise RuntimeError('invalid func format, func: aggregate function name or a list of aggregate function names'
+                               ' or a dict of column label/expression->func')
         return self.__t.select(selectCols)
 
     def sum(self):

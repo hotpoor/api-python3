@@ -27,6 +27,7 @@ class temporal(object):
     #     if isinstance(other, int) or isinstance(other, long): return self.__value == other
     #     return False
 
+
 class Date(temporal):
 
     @classmethod
@@ -50,6 +51,7 @@ class Date(temporal):
         if self.value == DBNAN[DT_DATE]: return ''
         date = parseDate(self.value)
         return "{0:04d}.{1:02d}.{2:02d}".format(date.year, date.month, date.day)
+
 
 class Month(temporal):
 
@@ -141,6 +143,7 @@ class Second(temporal):
     def __repr__(self):
         if self.value == DBNAN[DT_SECOND]: return ''
         return "{0:02d}:{1:02d}:{2:02d}".format( int(self.value / 3600), int(self.value % 3600 / 60), int(self.value % 60))
+
 
 class Datetime(temporal):
 
@@ -266,7 +269,7 @@ def parseDate(days):
 
     tmpDays = similarYears * 365
     if similarYears > 0:
-        tmp = (similarYears - 1) / 4 + 1 - (similarYears - 1) / 100
+        tmp = int((similarYears - 1) / 4) + 1 - int((similarYears - 1) / 100)
         if tmp%1 > 0.72:
             tmp = int(tmp)+1
         tmpDays += tmp
@@ -309,9 +312,9 @@ def countNanotime(time):
     return secs * 1000000000 + time.microsecond * 1000;
 
 def parseDateTime(seconds):
-    days = seconds / 86400
+    days = int(seconds / 86400)
     dt = parseDate(days)
-    seconds = seconds % 86400
+    seconds = int(seconds % 86400)
     if (seconds < 0):
         seconds += 86400
     hour = int(seconds / 3600)
@@ -323,7 +326,7 @@ def parseDateTime(seconds):
 def parseTimestamp(milliseconds):
     days = int(milliseconds / 86400000)
     dt = parseDate(days)
-    milliseconds = milliseconds % 86400000
+    milliseconds = int(milliseconds % 86400000)
     if (milliseconds < 0):
         milliseconds += 86400000
     microsecond = int(milliseconds % 1000 * 1000)
@@ -337,7 +340,7 @@ def parseTimestamp(milliseconds):
 def parseNanoTimestamp(nanoseconds):
     days = int(nanoseconds / (86400000 * 1000000))
     dt = parseDate(days)
-    miliseconds = (nanoseconds/1000000) % 86400000
+    miliseconds = (int(nanoseconds/1000000)) % 86400000
     #microsecond = (nanoseconds/1000) % 864000L
     if (miliseconds < 0):
         miliseconds += 86400000
