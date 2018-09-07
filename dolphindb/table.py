@@ -129,9 +129,10 @@ class Table(object):
     def _init_schema(self):
         if self.__schemaInited is True:
             return
-        colNames = self.__session.run("colNames(%s)" % self.__tableName)
-        # schema = self.__session.run("schema(%s)" % self.__tableName)  # type: dict
-        # colDefs = schema.get('colDefs')  # type: DataFrame
+        #colNames = self.__session.run("colNames(%s)" % self.__tableName)
+        schema = self.__session.run("schema(%s)" % self.__tableName)  # type: dict
+        colDefs = schema.get('colDefs')  # type: DataFrame
+        colNames = colDefs["name"].tolist()
         self.vecs = {}
         self.__columns = colNames
         if colNames is not None:
@@ -407,11 +408,13 @@ class Table(object):
 
     def _assembleSelect(self):
         try:
-            if len(self.__select):
+            if len(self.__select) and isinstance(self.__select,list):
                 return ','.join(self.__select)
             else:
                 return '*'
         except AttributeError:
+            return '*'
+        except ValueError:
             return '*'
 
     def _assembleWhere(self):
