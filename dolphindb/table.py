@@ -22,6 +22,7 @@ def _getFuncName(f):
 def normalize_caseless(text):
     return unicodedata.normalize("NFKD", text.casefold())
 
+
 class Table(object):
     def __init__(self, dbPath=None, data=None,  tableAliasName=None, partitions=[], inMem=False, schemaInited=False,
                  s=None):
@@ -124,6 +125,7 @@ class Table(object):
             cols = list(cols)
         if isinstance(cols, list) is False:
             cols = [cols]
+
         self.__select = cols
 
     def _init_schema(self):
@@ -222,7 +224,7 @@ class Table(object):
         return groupby
 
     def contextby(self, cols):
-        contextbyTable = copy.deepcopy(self)
+        contextbyTable = copy.copy(self)
         contextby = TableContextby(contextbyTable, cols)
         contextbyTable._setContextby(contextby)
         return contextby
@@ -245,19 +247,35 @@ class Table(object):
         return self.__session.run(query)
 
 
-    # @property
-    def count(self):
+    @property
+    def rows(self):
         # if 'update' in self.showSQL().lower() or 'insert' in  self.showSQL().lower():
         #     return self.__session.run('exec count(*) from %s'% self.__tableName)
-        return self.__session.run('size('+self.showSQL()+')')
+        sql = self.showSQL()
+        idx = sql.lower().index("from")
+        sql_new = "select count(*) as ct " + sql[idx:]
+        df = self.__session.run(sql_new)
+        if df.shape[0]>1:
+            return df.shape[0]
+        else:
+            return df['ct'].iloc[0]
 
     @property
-    def columns(self):
+    def cols(self):
         if not self.__columns:
-            cols = self.__session.run("columnNames(%s)" % self.__tableName)
-            self.__columns = cols
+            z = self.__session.run("schema" % self.__tableName)
+            self.__columns = z["colDefs"]["name"]
+        return len(self.__columns)
+
+
+    @property
+    def colNames(self):
+        if not self.__columns:
+            z = self.__session.run("schema" % self.__tableName)
+            self.__columns = z["colDefs"]["name"]
         return self.__columns
 
+    
     @property
     def schema(self):
         schema = self.__session.run("schema(%s)" % self.__tableName)  # type: dict
@@ -403,6 +421,66 @@ class Table(object):
         joinTable._setSelect(leftSelectCols + rightSelectCols)
         return joinTable
 
+    def merge_window(self, right, leftBound=None, rightBound=None, aggFunctions=None, on=None, left_on=None, right_on=None, prevailing=False):
+
+        """
+                window merge two tables on some columns.
+                see http://www.dolphindb.com/help/index.html?asofjoin.html
+
+                :param right: right table or the name of the right table on remote server
+                :param on: column or list of columns
+                    columns to join on, must be present on both tables.
+                :param left_on: column or list of columns
+                    left table columns to join on, default to on if None
+                :param right_on: column or list of columns
+                    right table columns to join on, default to on if None
+                :param :prevailing: if using the prevailing window join
+                :param :leftBound:  the left bound (inclusive) of the window relative to the records in the left table
+                :param :rightBound:  the right bound (inclusive) of the window relative to the records in the left table
+                :return: merged Table object
+
+        """
+        leftTableName = self.tableName()
+        rightTableName = right.tableName() if isinstance(right, Table) else right
+
+        ifPrevailing = False
+
+        if prevailing is not None:
+            ifPrevailing = prevailing
+
+        if on is not None and not isinstance(on, list) and not isinstance(on, tuple):
+            on = [on]
+        if left_on is not None and not isinstance(left_on, list) and not isinstance(left_on, tuple):
+            left_on = [left_on]
+        if right_on is not None and not isinstance(right_on, list) and not isinstance(right_on, tuple):
+            right_on = [right_on]
+
+        if on is not None:
+            left_on, right_on = on, on
+        elif left_on is None and right_on is None:
+            raise Exception('at least one of {\'on\', \'left_on\', \'right_on\'} must be present')
+        elif left_on is not None and right_on is not None and len(left_on) != len(right_on):
+            raise Exception('\'left_on\' must have the same length as \'right_on\'')
+
+        if left_on is None and right_on is not None:
+            left_on = right_on
+        if right_on is None and left_on is not None:
+            right_on = left_on
+
+        leftColumnNames = ''.join(['`' + x for x in left_on])
+        rightColumnNames = ''.join(['`' + x for x in right_on])
+
+        if ifPrevailing:
+            finalTableName = 'pwj(%s,%s,%d:%d,%s,%s,%s)' % (leftTableName, rightTableName, leftBound, rightBound, aggFunctions, leftColumnNames, rightColumnNames)
+        else:
+            finalTableName = 'wj(%s,%s,%d:%d,%s,%s,%s)' % (leftTableName, rightTableName, leftBound, rightBound, aggFunctions, leftColumnNames, rightColumnNames)
+        print(finalTableName)
+        self._init_schema()
+        right._init_schema()
+        joinTable = copy.copy(self)
+        joinTable._setTableName(finalTableName)
+        return joinTable
+
     def _getSelect(self):
         return self.__select
 
@@ -451,6 +529,8 @@ class Table(object):
         fmtDict['orderby'] = self._assembleOrderby()
         query = re.sub(' +', ' ', queryFmt.format(**fmtDict).strip())
         # print(query)
+        if(self.__tableName.startswith("wj") or self.__tableName.startswith("pwj")):
+            return self.__tableName
         return query
 
     def append(self, table):
@@ -923,12 +1003,12 @@ class TableContextby(object):
         self.__having = having
 
     def sort(self, bys):
-        sortTable = copy.deepcopy(self.__t)
+        sortTable = copy.copy(self.__t)
         sortTable._setSort(bys)
         return TableContextby(sortTable, self.__contextBys)
 
     def having(self, expr):
-        havingTable = copy.deepcopy(self.__t)
+        havingTable = copy.copy(self.__t)
         self.__having = expr
         havingTable._setHaving(self.__having)
         return havingTable
@@ -963,7 +1043,7 @@ class TableContextby(object):
         return self.__t.top(num=num)
 
     def having(self, expr):
-        havingTable = copy.deepcopy(self.__t)
+        havingTable = copy.copy(self.__t)
         self.__having = expr
         havingTable._setHaving(self.__having)
         return havingTable
@@ -1094,6 +1174,16 @@ class TableContextby(object):
         see www.dolphindb.com/help/eachPreP.html for more.
         '''
         return self.agg2('eachPre', args)
+
+    def toDF(self):
+        """
+        execute sql query on remote dolphindb server
+        :return: query result as a pandas.DataFrame object
+        """
+        query = self.showSQL()
+        print(query)
+        df = self.__t.session().run(query)  # type: DataFrame
+        return df
 
 
 wavg = TableGroupby.wavg
