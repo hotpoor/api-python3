@@ -185,6 +185,61 @@ class TestTable(unittest.TestCase):
                          rs("select %s from aj(%s,%s,`vol, `vol)" % (select, n1, n2)))
         print(dt1.merge_asof(dt2, on='vol').toDF())
 
+    def test_merge_window(self):
+        s.run("db=database(\"" + WORK_DIR + "/windowJoin2\")")
+        s.run("t1 = table(`A`A`B as sym, 09:56:06 09:56:07 09:56:06 as time, 10.6 10.7 20.6 as price)")
+        s.run("saveTable(db, t1, `t1)")
+        s.run(
+            "t2 = table(take(`A,10) join take(`B,10) as sym, take(09:56:00+1..10,20) as time, (10+(1..10)\ 10-0.05) join (20+(1..10)\ 10-0.05) as bid, (10+(1..10)\ 10+0.05) join (20+(1..10)\ 10+0.05) as offer, take(100 300 800 200 600, 20) as volume);")
+        s.run("saveTable(db, t2, `t2)")
+        s.run("t3=t2")
+        s.run("t3.rename!(`time, `second)")
+        s.run("saveTable(db, t3);")
+        s.run("t4=t2")
+        s.run("delete from t4 where 09:56:04<=time<=09:56:06")
+        s.run("saveTable(db, t4);")
+
+        dt1 = s.table(dbPath=WORK_DIR + "/windowJoin2", data="t1", inMem=True)
+        df1 = dt1.toDF()
+        print(df1)
+        dt2 = s.table(dbPath=WORK_DIR + "/windowJoin2", data="t2", inMem=True)
+        df2 = dt2.toDF()
+        print(df2)
+        dt3 = s.table(dbPath=WORK_DIR + "/windowJoin2", data="t3", inMem=True)
+        df3 = dt3.toDF()
+        print(df3)
+        dt4 = s.table(dbPath=WORK_DIR + "/windowJoin2", data="t4", inMem=True)
+        df4 = dt4.toDF()
+        print(df4)
+
+        print(dt1.merge_window(dt2, on='sym`time', aggFunctions='<avg(bid)>', leftBound=-5, rightBound=0, ).showSQL())
+        print(dt1.merge_window(dt2, on='sym`time', aggFunctions='<avg(bid)>', leftBound=-5, rightBound=0, ).toDF())
+
+        print(dt1.merge_window(dt2, on='sym`time', aggFunctions=' <[wavg(bid,volume), wavg(offer,volume)]>', leftBound=-5,
+                               rightBound=-1, ).showSQL())
+        print(dt1.merge_window(dt2, on='sym`time', aggFunctions=' <[wavg(bid,volume), wavg(offer,volume)]>', leftBound=-5,
+                               rightBound=-1, ).toDF())
+
+        print(dt1.merge_window(dt3, left_on='sym`time', right_on="sym`second", aggFunctions=' <[wavg(bid,volume), wavg(offer,volume)]>', leftBound=-2,
+                               rightBound=2, ).showSQL())
+        print(dt1.merge_window(dt3, left_on='sym`time', right_on="sym`second", aggFunctions=' <[wavg(bid,volume), wavg(offer,volume)]>', leftBound=-2,
+                               rightBound=2, ).toDF())
+
+        print(dt1.merge_window(dt2, on='sym`time', aggFunctions='<[last(bid) as bid, last(offer) as offer]>', leftBound=-100, rightBound=0, ).showSQL())
+        print(dt1.merge_window(dt2, on='sym`time', aggFunctions='<[last(bid) as bid, last(offer) as offer]>', leftBound=-100, rightBound=0, ).toDF())
+
+        print(dt1.merge_window(dt2, on='sym`time', aggFunctions='<avg(bid)>', leftBound=-5, rightBound=0, ).showSQL())
+        print(dt1.merge_window(dt2, on='sym`time', aggFunctions='<avg(bid)>', leftBound=-5, rightBound=0, ).toDF())
+
+        print(dt1.merge_window(dt4, on='sym`time', aggFunctions='<[first(bid), avg(offer)]>', leftBound=-1,
+                               rightBound=1, ).showSQL())
+        print(dt1.merge_window(dt4, on='sym`time', aggFunctions='<[first(bid), avg(offer)]>', leftBound=-1,
+                               rightBound=1, ).toDF())
+
+        print(dt1.merge_window(dt4, on='sym`time', aggFunctions=' <[first(bid), avg(offer)]>', leftBound=-1, rightBound=1, prevailing=True).showSQL())
+        print(dt1.merge_window(dt4, on='sym`time', aggFunctions=' <[first(bid), avg(offer)]>', leftBound=-1, rightBound=1, prevailing=True).toDF(), )
+
+
     def test_pull_remote_table(self):
         print("\ntest_pull_remote_table:")
         """
