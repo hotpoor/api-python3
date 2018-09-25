@@ -346,7 +346,7 @@ class session(object):
         self.run(runstr)
         return Table(data=tableName, s=self)
 
-    def loadTable(self, dbPath, tableName, partitions=[], memoryMode=False):
+    def loadTable(self,tableName,  dbPath=None, partitions=[], memoryMode=False):
         """
         :param dbPath: DolphinDB table db path
         :param tableName: DolphinDB table name
@@ -354,29 +354,31 @@ class session(object):
         :param memoryMode: loadTable all in ram or not
         :return:a Table object
         """
-
-        runstr = '{tableName} = loadTable("{dbPath}", "{data}",{partitions},{inMem})'
-        fmtDict = dict()
-        tbName = _generate_tablename()
-        fmtDict['tableName'] = tbName
-        fmtDict['dbPath'] = dbPath
-        fmtDict['data'] = tableName
-        if type(partitions) is list:
-            if len(partitions) and type(partitions[0]) is not str:
-                fmtDict['partitions'] = ('[' + ','.join(str(x) for x in partitions) + ']') if len(partitions) else ""
+        if dbPath:
+            runstr = '{tableName} = loadTable("{dbPath}", "{data}",{partitions},{inMem})'
+            fmtDict = dict()
+            tbName = _generate_tablename()
+            fmtDict['tableName'] = tbName
+            fmtDict['dbPath'] = dbPath
+            fmtDict['data'] = tableName
+            if type(partitions) is list:
+                if len(partitions) and type(partitions[0]) is not str:
+                    fmtDict['partitions'] = ('[' + ','.join(str(x) for x in partitions) + ']') if len(partitions) else ""
+                else:
+                    fmtDict['partitions'] = ('["' + '","'.join(partitions) + '"]') if len(partitions) else ""
             else:
-                fmtDict['partitions'] = ('["' + '","'.join(partitions) + '"]') if len(partitions) else ""
+                if type(partitions) is str:
+                    fmtDict['partitions'] = '"' + partitions + '"'
+                else:
+                    fmtDict['partitions'] = partitions
+            fmtDict['inMem'] = str(memoryMode).lower()
+            runstr = re.sub(' +', ' ', runstr.format(**fmtDict).strip())
+            self.run(runstr)
+            return Table(data=tbName, s=self)
         else:
-            if type(partitions) is str:
-                fmtDict['partitions'] = '"' + partitions + '"'
-            else:
-                fmtDict['partitions'] = partitions
-        fmtDict['inMem'] = str(memoryMode).lower()
-        runstr = re.sub(' +', ' ', runstr.format(**fmtDict).strip())
-        self.run(runstr)
-        return Table(data=tbName, s=self)
+            return Table(data=tableName, s=self)
 
-    def loadTableBySQL(self, dbPath, tableName, sql):
+    def loadTableBySQL(self, tableName, dbPath, sql):
         """
         :param tableName: DolphinDB table name
         :param dbPath: DolphinDB table db path
@@ -425,12 +427,32 @@ class session(object):
     def existsTable(self, dbUrl, tableName):
         return self.run("existsTable('%s','%s')" % (dbUrl,tableName))
 
-    def dropDatabase(self, dbName):
-        self.run("dropDatabase('"+dbName+"')")
+    def dropDatabase(self, dbPath):
+        self.run("dropDatabase('" + dbPath + "')")
 
-    def dropTable(self,dbUrl, tableName):
+    def dropPartition(self, dbPath, partitionPaths, tableName=None):
+        """
+
+        :param dbPath: a DolphinDB database path
+        :param partitionPaths:  a string or a list of strings. It indicates the directory of a single partition or a list of directories for multiple partitions under the database folder. It must start with "/"
+        :param tableName:a string indicating a table name.
+        :return:
+        """
         db = _generate_dbname()
-        self.run(db + '=database("' + dbUrl + '")')
+        self.run(db + '=database("' + dbPath + '")')
+        if isinstance(partitionPaths, list):
+            pths = '"'+'","'.join(partitionPaths)+'"'
+        else:
+            pths = partitionPaths
+
+        if tableName:
+            self.run("dropPartition(%s,[%s],%s)" % (db, pths, tableName))
+        else:
+            self.run("dropPartition(%s,[%s])" % (db, pths))
+
+    def dropTable(self, dbPath, tableName):
+        db = _generate_dbname()
+        self.run(db + '=database("' + dbPath + '")')
         self.run("dropTable(%s,'%s')" % (db,tableName))
 
     def loadTextEx(self, dbPath="", tableName="",  partitionColumns=[], filePath="", delimiter=","):
@@ -447,11 +469,12 @@ class session(object):
             dbstr ='db=database("' + dbPath + '")'
         # print(dbstr)
             self.run(dbstr)
-            tbl_str = '{tableName} = loadTextEx(db, "{tableName}", {partitionColumns}, "{filePath}", {delimiter})'
+            tbl_str = '{tableNameNEW} = loadTextEx(db, "{tableName}", {partitionColumns}, "{filePath}", {delimiter})'
         else:
             isDBPath = False
-            tbl_str = '{tableName} = loadTextEx('+dbPath+', "{tableName}", {partitionColumns}, "{filePath}", {delimiter})'
+            tbl_str = '{tableNameNEW} = loadTextEx('+dbPath+', "{tableName}", {partitionColumns}, "{filePath}", {delimiter})'
         fmtDict = dict()
+        fmtDict['tableNameNEW'] = _generate_tablename()
         fmtDict['tableName'] = tableName
         fmtDict['partitionColumns'] = str(partitionColumns)
         fmtDict['filePath'] = filePath
@@ -461,10 +484,25 @@ class session(object):
         # print(tbl_str)
         self.run(tbl_str)
         if isDBPath:
-            return Table(data=tableName, dbPath=dbPath, s=self)
+            return Table(data=fmtDict['tableName'] , dbPath=dbPath, s=self)
         else:
-            return Table(data=tableName, s=self)
+            return Table(data=fmtDict['tableNameNEW'], s=self)
 
+    def undef(self, varName, varType):
+        undef_str = 'undef("{varName}", {varType})'
+        fmtDict = dict()
+        fmtDict['varName'] = varName
+        fmtDict['varType'] = varType
+        self.run(undef_str.format(**fmtDict).strip())
+
+    def undefAll(self):
+        self.run("undef all")
+
+    def clearAllCache(self, dfs=False):
+        if dfs:
+            self.run("pnodeRun(clearAllCache)")
+        else:
+            self.run("clearAllCache()")
 
     # @property
     # def read_dolphindb_obj(self):

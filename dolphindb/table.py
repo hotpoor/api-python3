@@ -29,6 +29,9 @@ class Table(object):
         self.__having = None
         self.__top = None
         self.__exec = False
+        self.__leftTable = None
+        self.__rightTable = None
+        self.__merge_for_update = False
         if s is None:
             raise RuntimeError("session must be provided")
         self.__tableName = _generate_tablename() if not isinstance(data, str) else data
@@ -164,6 +167,18 @@ class Table(object):
     def _setTableName(self, tableName):
         self.__tableName = tableName
 
+    def _setLeftTable(self, tableName):
+        self.__leftTable = tableName
+
+    def _setRightTable(self, tableName):
+        self.__rightTable = tableName
+
+    def getLeftTable(self):
+        return self.__leftTable
+
+    def getRightTable(self):
+        return self.__rightTable
+
     def session(self):
         return self.__session
 
@@ -239,12 +254,12 @@ class Table(object):
         topTable._setTop(num)
         return topTable
 
-    def selectAsVector(self, colName):
-        if colName:
-            self._setSelect(colName)
-        pattern = re.compile("select", re.IGNORECASE)
-        query = pattern.sub('exec', self.showSQL())
-        return self.__session.run(query)
+    # def exec(self, expr):
+    #     if expr:
+    #         self._setSelect(expr)
+    #     pattern = re.compile("select", re.IGNORECASE)
+    #     query = pattern.sub('exec', self.showSQL())
+    #     return self.__session.run(query)
 
 
     @property
@@ -282,6 +297,13 @@ class Table(object):
         colDefs = schema.get('colDefs')  # type: DataFrame
         return colDefs
 
+    @property
+    def isMergeForUpdate(self):
+        return self.__merge_for_update
+
+    def setMergeForUpdate(self, toUpdate):
+        self.__merge_for_update = toUpdate
+
     def pivotby(self, index, column, value, aggFunc=None):
         """
         create a pivot table.
@@ -296,7 +318,9 @@ class Table(object):
         pivotByTable = copy.copy(self)
         return TablePivotBy(pivotByTable, index, column, value, aggFunc)
 
-    def merge(self, right, how='inner', on=None, left_on=None, right_on=None, sort=False):
+
+
+    def merge(self, right, how='inner', on=None, left_on=None, right_on=None, sort=False, merge_for_update=False):
         """
         Merge two tables using ANSI SQL style join semantics.
 
@@ -363,8 +387,12 @@ class Table(object):
         rightSelectCols = [rightTableName + '.' + col + ' as ' + rightTableName + "_" + col for col in
                            right._getSelect() if col in self._getSelect()]
         # print(rightSelectCols)
+        joinTable._setLeftTable(self.tableName())
+        joinTable._setRightTable(right.tableName())
         joinTable._setTableName(finalTableName)
         joinTable._setSelect(leftSelectCols + rightSelectCols)
+        if merge_for_update:
+            joinTable.setMergeForUpdate(True)
         return joinTable
 
     def merge_asof(self, right, on=None, left_on=None, right_on=None):
@@ -417,6 +445,8 @@ class Table(object):
         leftSelectCols = self._getSelect()
         rightSelectCols = [rightTableName + '.' + col + ' as ' + rightTableName + "_" + col for col in
                            right._getSelect() if col in self._getSelect()]
+        joinTable._setLeftTable(self.tableName())
+        joinTable._setRightTable(right.tableName())
         joinTable._setTableName(finalTableName)
         joinTable._setSelect(leftSelectCols + rightSelectCols)
         return joinTable
@@ -471,13 +501,32 @@ class Table(object):
         rightColumnNames = ''.join(['`' + x for x in right_on])
 
         if ifPrevailing:
-            finalTableName = 'pwj(%s,%s,%d:%d,%s,%s,%s)' % (leftTableName, rightTableName, leftBound, rightBound, aggFunctions, leftColumnNames, rightColumnNames)
+            finalTableName = 'pwj(%s,%s,%d:%d,%s,%s,%s)' % (leftTableName, rightTableName, leftBound, rightBound, '<'+aggFunctions+'>', leftColumnNames, rightColumnNames)
         else:
-            finalTableName = 'wj(%s,%s,%d:%d,%s,%s,%s)' % (leftTableName, rightTableName, leftBound, rightBound, aggFunctions, leftColumnNames, rightColumnNames)
+            finalTableName = 'wj(%s,%s,%d:%d,%s,%s,%s)' % (leftTableName, rightTableName, leftBound, rightBound, '<'+aggFunctions+'>', leftColumnNames, rightColumnNames)
         print(finalTableName)
         self._init_schema()
         right._init_schema()
         joinTable = copy.copy(self)
+        joinTable._setLeftTable(self.tableName())
+        joinTable._setRightTable(right.tableName())
+        joinTable._setTableName(finalTableName)
+        return joinTable
+
+    def merge_cross(self, right):
+        """
+
+        :param right: right table to be cross joined
+        :return:
+        """
+        leftTableName = self.tableName()
+        rightTableName = right.tableName() if isinstance(right, Table) else right
+        finalTableName = 'cj(%s,%s)' % (leftTableName, rightTableName)
+        self._init_schema()
+        right._init_schema()
+        joinTable = copy.copy(self)
+        joinTable._setLeftTable(self.tableName())
+        joinTable._setRightTable(right.tableName())
         joinTable._setTableName(finalTableName)
         return joinTable
 
@@ -528,9 +577,9 @@ class Table(object):
         fmtDict['having'] = ("having " + self.__having) if self.__having else ''
         fmtDict['orderby'] = self._assembleOrderby()
         query = re.sub(' +', ' ', queryFmt.format(**fmtDict).strip())
-        # print(query)
-        if(self.__tableName.startswith("wj") or self.__tableName.startswith("pwj")):
-            return self.__tableName
+        print(query)
+        # if(self.__tableName.startswith("wj") or self.__tableName.startswith("pwj")):
+        #     return self.__tableName
         return query
 
     def append(self, table):
@@ -543,7 +592,10 @@ class Table(object):
 
     def update(self, cols, vals):
         tmp = copy.copy(self)
-        updateTable = TableUpdate(t=tmp, cols=cols, vals=vals)
+        contextby = self.__contextby if hasattr(self, '__contextby') else None
+        having = self.__having if hasattr(self, '__having') else None
+        updateTable = TableUpdate(t=tmp, cols=cols, vals=vals, contextby=contextby, having=having)
+        updateTable._setMergeForUpdate(self.isMergeForUpdate)
         return updateTable
 
     def rename(self, newName):
@@ -579,13 +631,17 @@ class Table(object):
         return self
 
     def executeAs(self, newTableName):
-        self.__session.run(newTableName + "=" + self.showSQL())
+        st = newTableName + "=(" + self.showSQL()+")"
+        print(st)
+        self.__session.run(st)
         return Table(data=newTableName, s=self.__session)
 
     def contextby(self, cols):
         contextbyTable = copy.copy(self)
+        contextbyTable.__merge_for_update = self.__merge_for_update
         contextby = TableContextby(contextbyTable, cols)
         contextbyTable._setContextby(contextby)
+        contextbyTable._setTableName(self.tableName())
         return contextby
 
     def ols(self, Y, X, INTERCEPT=True):
@@ -622,6 +678,7 @@ class Table(object):
             fmtDict['ds'] = dsstr
             fmtDict['INTERCEPT'] = str(INTERCEPT).lower()
             query = re.sub(' +', ' ', runstr.format(**fmtDict).strip())
+            print(query)
             return self.__session.run(query)
         else:
             runstr = "z=exec ols({Y},{X},{INTERCEPT},2) from {table}"
@@ -631,6 +688,7 @@ class Table(object):
             fmtDict['X'] = str(myX)
             fmtDict['INTERCEPT'] = str(INTERCEPT).lower()
             query = re.sub(' +', ' ', runstr.format(**fmtDict).strip())
+            print(query)
             return self.__session.run(query)
 
     def toDF(self):
@@ -709,10 +767,16 @@ class TableDelete(object):
 
 
 class TableUpdate(object):
-    def __init__(self, t, cols, vals):
+    def __init__(self, t, cols, vals, contextby=None, having=None):
         self.__t = t
         self.__cols = cols
         self.__vals = vals
+        self.__contextby = contextby
+        self.__having = having
+        self.__merge_for_update = False
+
+    def _setMergeForUpdate(self, toMerge):
+        self.__merge_for_update = toMerge
 
     def _assembleUpdate(self):
         query = ""
@@ -747,13 +811,42 @@ class TableUpdate(object):
         caller = calframe[1][3]
         if caller != 'execute' and caller != 'print' and caller != "str" and caller != '<module>':
             return self.__t.showSQL()
-        queryFmt = 'update {table} set {update} {where}'
-        fmtDict = {}
-        fmtDict['update'] = self._assembleUpdate()
-        fmtDict['table'] = self.__t.tableName()
-        fmtDict['where'] = self._assembleWhere()
-        query = re.sub(' +', ' ', queryFmt.format(**fmtDict).strip())
-        return query
+        if not self.__merge_for_update:
+            queryFmt = 'update {table} set {update} {where} {contextby} {having}'
+            fmtDict = {}
+            fmtDict['update'] = self._assembleUpdate()
+            fmtDict['table'] = self.__t.tableName()
+            fmtDict['where'] = self.__t._assembleWhere()
+            if self.__contextby:
+                fmtDict['contextby'] = 'context by ' + ','.join(self.__contextby)
+            else:
+                fmtDict['contextby'] = ""
+            if self.__having:
+                fmtDict['having'] = ' having ' + self.__having
+            else:
+                fmtDict['having'] = ""
+            query = re.sub(' +', ' ', queryFmt.format(**fmtDict).strip())
+            return query
+        else:
+            if self.__t.getLeftTable() is None:
+                raise Exception("Join for update missing left table!")
+            queryFmt = 'update {table} set {update} from {joinTable} {where} {contextby} {having}'
+            fmtDict = {}
+            fmtDict['update'] = self._assembleUpdate()
+            fmtDict['table'] = self.__t.getLeftTable()
+            fmtDict['joinTable'] = self.__t.tableName()
+            fmtDict['where'] = self.__t._assembleWhere()
+            if self.__contextby:
+                fmtDict['contextby'] = 'context by ' + ','.join(self.__t.__contextby)
+            else:
+                fmtDict['contextby'] = ""
+            if self.__having:
+                fmtDict['having'] = ' having ' + self.__having
+            else:
+                fmtDict['having'] = ""
+            query = re.sub(' +', ' ', queryFmt.format(**fmtDict).strip())
+            self.__t.setMergeForUpdate(False)
+            return query
 
     def execute(self):
         """
@@ -761,6 +854,7 @@ class TableUpdate(object):
         :return: query result as a pandas.DataFrame object
         """
         query = self.showSQL()
+        print(query)
         self.__t.session().run(query)  # type: DataFrame
         return self.__t
 
@@ -822,16 +916,13 @@ class TablePivotBy(object):
         query = re.sub(' +', ' ', queryFmt.format(**fmtDict).strip())
         return query
 
-    def executeAs(self, newTableName):
-        self.__t.session().run(newTableName + "=" + self.showSQL())
-        return Table(data=newTableName, s=self.__t.session())
-
     def selectAsVector(self, colName):
         if colName:
             self._setSelect(colName)
         pattern = re.compile("select", re.IGNORECASE)
         query = pattern.sub('exec', self.showSQL())
         return self.__session.run(query)
+
 
 class TableGroupby(object):
     def __init__(self, t, groupBys, having=None):
@@ -848,7 +939,9 @@ class TableGroupby(object):
         return TableGroupby(sortTable, self.__groupBys, self.__having)
 
     def executeAs(self, newTableName):
-        self.__t.session().run(newTableName + "=" + self.showSQL())
+        st = newTableName + "=" + self.showSQL()
+        print(st)
+        self.__t.session().run(st)
         return Table(data=newTableName, s=self.__t.session())
 
     def __getitem__(self, item):
@@ -1049,7 +1142,9 @@ class TableContextby(object):
         return havingTable
 
     def executeAs(self, newTableName):
-        self.__t.session().run(newTableName + "=" + self.showSQL())
+        st = newTableName + "=" + self.showSQL()
+        print(st)
+        self.__t.session().run(st)
         return Table(data=newTableName, s=self.__t.session())
 
     def showSQL(self):
@@ -1107,6 +1202,10 @@ class TableContextby(object):
         if funcName:
             self.__t._getSelect().extend(funcName)
         return self.__t.select(self.__t._getSelect())
+
+    def update(self, cols, vals):
+        updateTable = TableUpdate(t=self.__t, cols=cols, vals=vals, contextby=self.__contextBys, having=self.__having)
+        return updateTable
 
     def sum(self):
         return self.agg('sum')
