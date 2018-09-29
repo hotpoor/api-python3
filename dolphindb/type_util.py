@@ -41,7 +41,7 @@ DBTYPE['Timestamp'] = DT_TIMESTAMP
 DBTYPE['NanoTime'] = DT_NANOTIME
 DBTYPE['NanoTimestamp'] = DT_NANOTIMESTAMP
 DBTYPE['datetime64[ns]']=DT_DATETIME64
-
+DBTYPE['datetime64[D]']=DT_DATETIME64
 class nan(object):
     def __init__(self, type):
         self.__type = type
@@ -92,12 +92,20 @@ def determine_form_type(obj):
         dbForm = DF_VECTOR
 
         if len(obj):
-            dbType = obj[0].type if isinstance(obj[0],t.nan) else DBTYPE[type(obj[0])]
-            for val in obj:
-                dbType2 = val.type if isinstance(val,t.nan) else DBTYPE[type(val)]
-                if dbType != DT_ANY and dbType2 != dbType:
-                    dbType = DT_ANY
-                    break
+            try:
+                dbType = obj[0].type if isinstance(obj[0],t.nan) else DBTYPE[type(obj[0])]
+                for val in obj:
+                    dbType2 = val.type if isinstance(val, t.nan) else DBTYPE[type(val)]
+                    if dbType != DT_ANY and dbType2 != dbType:
+                        dbType = DT_ANY
+                        break
+            except KeyError:
+                dbType = obj[0].dtype.name if isinstance(obj[0], t.nan) else DBTYPE[obj[0].dtype.name]
+                for val in obj:
+                    dbType2 = val.dtype.name if isinstance(val, t.nan) else DBTYPE[val.dtype.name]
+                    if dbType != DT_ANY and dbType2 != dbType:
+                        dbType = DT_ANY
+                        break
         else:
             raise RuntimeError("function argument with list type cannot be empty")
     elif isinstance(obj, dict):
