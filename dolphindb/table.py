@@ -9,7 +9,7 @@ import inspect
 import unicodedata
 
 def _generate_tablename():
-    return "T" + uuid.uuid4().hex[:8]
+    return "TMP_TBL_" + uuid.uuid4().hex[:8]
 
 
 def _getFuncName(f):
@@ -42,6 +42,8 @@ class Table(object):
                 'Column names must be passed in as a list')
         if isinstance(data, dict) or isinstance(data, DataFrame):
             df = data if isinstance(data, DataFrame) else DataFrame(data)
+            if  not self.__tableName.startswith("TMP_TBL_"):
+                self._setTableName(_generate_tablename())
             self.__session.upload({self.__tableName: df})
             self.vecs = {}
 
@@ -254,12 +256,12 @@ class Table(object):
         topTable._setTop(num)
         return topTable
 
-    # def exec(self, expr):
-    #     if expr:
-    #         self._setSelect(expr)
-    #     pattern = re.compile("select", re.IGNORECASE)
-    #     query = pattern.sub('exec', self.showSQL())
-    #     return self.__session.run(query)
+    def exec(self, expr):
+        if expr:
+            self._setSelect(expr)
+        pattern = re.compile("select", re.IGNORECASE)
+        query = pattern.sub('exec', self.showSQL())
+        return self.__session.run(query)
 
 
     @property
