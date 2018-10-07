@@ -147,8 +147,9 @@ class session(object):
             if not self.sessionID == headers[0]:
                 print ("old sessionID %s is invalid after reconnection; new sessionID is %s\n" % (self.sessionID, headers[0]))
                 self.sessionID = headers[0]
+        sid, obj_num, _ = headers
         msg = socket_util.readline(self.socket)
-        if msg != 'OK':
+        if msg != 'OK' and obj_num==0:
             raise Exception('Server Exception', msg)
         return None
 
