@@ -392,7 +392,8 @@ class Table(object):
         joinTable._setLeftTable(self.tableName())
         joinTable._setRightTable(right.tableName())
         joinTable._setTableName(finalTableName)
-        joinTable._setSelect(leftSelectCols + rightSelectCols)
+        #joinTable._setSelect(leftSelectCols + rightSelectCols)
+        joinTable._setSelect('*')
         if merge_for_update:
             joinTable.setMergeForUpdate(True)
         return joinTable
@@ -450,7 +451,8 @@ class Table(object):
         joinTable._setLeftTable(self.tableName())
         joinTable._setRightTable(right.tableName())
         joinTable._setTableName(finalTableName)
-        joinTable._setSelect(leftSelectCols + rightSelectCols)
+        joinTable._setSelect('*')
+        # joinTable._setSelect(leftSelectCols + rightSelectCols)
         return joinTable
 
     def merge_window(self, right, leftBound=None, rightBound=None, aggFunctions=None, on=None, left_on=None, right_on=None, prevailing=False):
