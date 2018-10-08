@@ -213,7 +213,7 @@ class NanoTime(temporal):
     def __repr__(self):
         if self.value == DBNAN[DT_NANOTIME]: return ''
         mili = int(self.value / 1000000)
-        return "{0:02d}:{1:02d}:{2:02d}.{3:03d}".format(int(mili / 3600000), int(mili / 60000 % 60), int(mili / 1000 % 60), int(self.value % 1000000000))
+        return "{0:02d}:{1:02d}:{2:02d}.{3:09d}".format(int(mili / 3600000), int(mili / 60000 % 60), int(mili / 1000 % 60), int(self.value % 1000000000))
 
 
 
