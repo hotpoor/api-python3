@@ -503,7 +503,8 @@ class Table(object):
 
         leftColumnNames = ''.join(['`' + x for x in left_on])
         rightColumnNames = ''.join(['`' + x for x in right_on])
-
+        if isinstance(aggFunctions, list):
+            aggFunctions ='[' +  ','.join(aggFunctions) + ']'
         if ifPrevailing:
             finalTableName = 'pwj(%s,%s,%d:%d,%s,%s,%s)' % (leftTableName, rightTableName, leftBound, rightBound, '<'+aggFunctions+'>', leftColumnNames, rightColumnNames)
         else:
