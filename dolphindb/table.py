@@ -515,6 +515,7 @@ class Table(object):
         joinTable._setLeftTable(self.tableName())
         joinTable._setRightTable(right.tableName())
         joinTable._setTableName(finalTableName)
+        joinTable._setSelect('*')
         return joinTable
 
     def merge_cross(self, right):
