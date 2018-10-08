@@ -43,8 +43,15 @@ def read_dolphindb_obj_general(socket):
     if data_form == DF_VECTOR and data_type == DT_ANY:
         return VECTOR_FACTORY[DT_ANY](socket)
     elif data_form in [DF_SCALAR, DF_VECTOR]:
+
         if data_type in DATA_LOADER[data_form]:
-            return DATA_LOADER[data_form][data_type](socket)
+            obj = DATA_LOADER[data_form][data_type](socket)
+            if data_type == DT_BOOL:
+                if data_form == DF_SCALAR:
+                    return bool(obj)
+                else:
+                    return np.array(obj, dtype=bool)
+            return obj
         else:
             return None
     elif data_form in [DF_SET, DF_DICTIONARY, DF_TABLE, DF_MATRIX]:
@@ -77,7 +84,7 @@ def vec_generator(socket, data_type):
             data += packet
         (data.split('\x00\x00')[0].split('\x00')[:size])
         """
-        return np.array(vc)
+        return np.array(vc, dtype=object)
     else:
         return np.array(list(DATA_UNPACKER[data_type](socket, size)))
 
@@ -171,7 +178,8 @@ def table_generator(socket):
             elif data_type in [DT_TIME, DT_SECOND, DT_MINUTE]:
                 col = np.datetime64(d.to_time() for d in col)
             elif data_type in [DT_NANOTIME, DT_DATETIME64]:
-                col = np.datetime64(d.to_nanotime() for d in col)
+                # col = np.datetime64(d.to_nanotime() for d in col)
+                pass
             elif data_type in [DT_NANOTIMESTAMP]:
                 col = np.datetime64(d.to_nanotimestamp() for d in col)
         else:

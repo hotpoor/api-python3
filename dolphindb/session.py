@@ -12,9 +12,9 @@ from dolphindb.table import Table
 from threading import Thread, Lock
 
 def _generate_tablename():
-    return "T" + uuid.uuid4().hex[:8]
+    return "TMP_TBL_" + uuid.uuid4().hex[:8]
 def _generate_dbname():
-    return "DB" + uuid.uuid4().hex[:8]+"DB"
+    return "TMP_DB_" + uuid.uuid4().hex[:8]+"DB"
 
 
 class session(object):
