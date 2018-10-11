@@ -174,14 +174,13 @@ def table_generator(socket):
             if data_type in [DT_DATE, DT_MONTH]:
                 col = [np.datetime64(d.to_date()) for d in col]
             elif data_type in [DT_DATETIME, DT_TIMESTAMP]:
-                col = np.datetime64(d.to_datetime() for d in col)
+                col = np.array([np.datetime64(d.to_datetime()) for d in col])
             elif data_type in [DT_TIME, DT_SECOND, DT_MINUTE]:
-                col = np.datetime64(d.to_time() for d in col)
+                col = np.array([d.to_time() for d in col])
             elif data_type in [DT_NANOTIME, DT_DATETIME64]:
-                # col = np.datetime64(d.to_nanotime() for d in col)
-                pass
+                col = np.array([d.to_nanotime() for d in col])
             elif data_type in [DT_NANOTIMESTAMP]:
-                col = np.datetime64(d.to_nanotimestamp() for d in col)
+                col = np.array([np.datetime64(d.to_nanotimestamp()) for d in col])
         else:
             col = VECTOR_FACTORY[data_type](socket)
         df[colNames[i]] = col
