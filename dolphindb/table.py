@@ -1001,13 +1001,11 @@ class TableGroupby(object):
             selectCols = [_getFuncName(f) + '(' + x + ')' for x in selectCols for f in func if x not in self.__groupBys]
         elif isinstance(func, dict):
             funcDict = {}
-            for colName, f in func.iteritems():
+            for colName, f in func.items():
                 funcDict[colName] = f if isinstance(f, list) else [f]
-            # selectCols = [_getFuncName(f) + '(' + x + ')' for x, funcs in funcDict.iteritems() for f in funcs if x not in self.__groupBys]
-            selectCols = [_getFuncName(f) + '(' + x + ')' for x, funcs in funcDict.iteritems() for f in funcs ]
+            selectCols = [_getFuncName(f) + '(' + x + ')' for x, funcs in funcDict.items() for f in funcs if x not in self.__groupBys]
         elif isinstance(func, str):
-            # selectCols = [_getFuncName(func) + '(' + x + ')' for x in selectCols if x not in self.__groupBys]
-            selectCols = [_getFuncName(func) + '(' + x + ')' for x in selectCols]
+            selectCols = [_getFuncName(func) + '(' + x + ')' for x in selectCols if x not in self.__groupBys]
         else:
             raise RuntimeError('invalid func format, func: aggregate function name or a list of aggregate function names'
                                ' or a dict of column label/expression->func')
