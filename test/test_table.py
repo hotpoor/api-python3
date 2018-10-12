@@ -2,9 +2,9 @@ import unittest
 import dolphindb as ddb
 rs = lambda s: s.replace(' ', '')
 
-HOST = "172.16.95.128"
+HOST = "38.124.1.173"
 PORT = 8921
-WORK_DIR = "C:/Tutorials_EN/data"
+WORK_DIR = "C/tutorials_en/data"
 s = ddb.session(HOST, PORT,"admin","123456") # type: ddb.session
 
 
@@ -25,58 +25,57 @@ class TestTable(unittest.TestCase):
         b = s.run("select price from %s" % tableName)
         self.assertEqual(a.equals(b), True)
 
-        self.assertEqual(rs(dt.showSQL()), rs("select vol,symb,price from %s" % tableName))
-        self.assertEqual(dt.toDF().equals(s.run("select vol,symb,price from %s" % tableName)), True)
+        self.assertEqual(rs(dt.showSQL()), rs("select price,symb,vol from %s " % tableName))
+        self.assertEqual(dt.toDF().equals(s.run("select price,symb,vol from %s " % tableName)), True)
 
-        self.assertEqual(rs(dt.groupby('symb').showSQL()), rs("select vol,symb,price from %s group by symb" % tableName))
+        self.assertEqual(rs(dt.groupby('symb').showSQL()), rs("select price,symb,vol from %s group by symb" % tableName))
 
-        self.assertEqual(rs(dt['price', 'vol'].showSQL()), rs("select price, vol from %s" %tableName))
-        self.assertEqual(dt['price', 'vol'].toDF().equals(s.run("select price, vol from %s" %tableName)), True)
+        self.assertEqual(rs(dt['price', 'vol'].showSQL()), rs("select price,vol from %s " %tableName))
+        self.assertEqual(dt['price', 'vol'].toDF().equals(s.run("select price,vol from %s " %tableName)), True)
 
-        self.assertEqual(rs(dt['price > 10'].showSQL()), rs("select price>10 from %s" % tableName))
-        self.assertEqual(dt['price > 10'].toDF().equals(s.run("select price>10 from %s" % tableName)), True)
+        self.assertEqual(rs(dt['price > 10'].showSQL()), rs("select price>10 from %s " % tableName))
+        self.assertEqual(dt['price > 10'].toDF().equals(s.run("select price>10 from %s " % tableName)), True)
 
-        self.assertEqual(rs(dt[dt.price > 10].showSQL()), rs("select vol,symb,price from %s where (price > 10)" % tableName))
-        self.assertEqual(dt[dt.price > 10].toDF().equals(s.run("select vol,symb,price from %s where (price > 10)" % tableName)), True)
+        self.assertEqual(rs(dt[dt.price > 10].showSQL()), rs("select price,symb,vol from %s where (price > 10)" % tableName))
+        self.assertEqual(dt[dt.price > 10].toDF().equals(s.run("select price,symb,vol from %s where (price > 10)" % tableName)), True)
         #
-        self.assertEqual(rs(dt[(dt.price > 10) | (dt.vol < 5.5)].showSQL()), rs("select vol,symb,price from %s where ((price > 10) or (vol < 5.5))" % tableName))
-        self.assertEqual(dt[(dt.price > 10) | (dt.vol < 5.5)].toDF().equals(s.run("select vol,symb,price from %s where ((price > 10) or (vol < 5.5))" % tableName)),True)
+        self.assertEqual(rs(dt[(dt.price > 10) | (dt.vol < 5.5)].showSQL()), rs("select price,symb,vol from %s where ((price > 10) or (vol < 5.5))" % tableName))
+        self.assertEqual(dt[(dt.price > 10) | (dt.vol < 5.5)].toDF().equals(s.run("select price,symb,vol from %s where ((price > 10) or (vol < 5.5))" % tableName)),True)
 
-        self.assertEqual(rs(dt[(dt.price > 10) | (dt.vol < 5.5)].groupby('price,vol').showSQL()), rs("select vol,symb,price from %s where ((price > 10) or (vol < 5.5)) group by price, vol" % tableName))
+        self.assertEqual(rs(dt[(dt.price > 10) | (dt.vol < 5.5)].groupby('price,symb,vol').showSQL()), rs("select price,symb,vol from %s where ((price > 10) or (vol < 5.5)) group by price,symb,vol" % tableName))
 
-        self.assertEqual(rs(dt[(dt.price > 10) | (dt.vol < 5.5)].groupby('price,int(vol)').showSQL()),rs("select vol,symb,price from %s where ((price > 10) or (vol < 5.5)) group by price, int(vol)" % tableName))
+        self.assertEqual(rs(dt[(dt.price > 10) | (dt.vol < 5.5)].groupby('price,int(vol)').showSQL()),rs("select price,symb,vol from %s where ((price > 10) or (vol < 5.5)) group by price,int(vol)" % tableName))
 
-        self.assertEqual(rs(dt.where(dt.price > 10).showSQL()), rs("select vol,symb,price from %s where (price > 10)" % tableName))
-        self.assertEqual(dt.where(dt.price > 10).toDF().equals(s.run("select vol,symb,price from %s where (price > 10)" % tableName)), True)
+        self.assertEqual(rs(dt.where(dt.price > 10).showSQL()), rs("select price,symb,vol from %s where (price > 10)" % tableName))
+        self.assertEqual(dt.where(dt.price > 10).toDF().equals(s.run("select price,symb,vol from %s where (price > 10)" % tableName)), True)
 
 
-        self.assertEqual(rs(dt.sort('vol').showSQL()), rs("select vol,symb,price from %s order by vol" % tableName))
-        self.assertEqual(dt.sort('vol').toDF().equals( s.run("select vol,symb,price from %s order by vol" % tableName)), True)
+        self.assertEqual(rs(dt.sort('vol').showSQL()), rs("select price,symb,vol from %s order by vol" % tableName))
+        self.assertEqual(dt.sort('vol').toDF().equals( s.run("select price,symb,vol from %s order by vol" % tableName)), True)
 
-        self.assertEqual(rs(dt.sort('vol asc').showSQL()), rs("select vol,symb,price from %s order by vol asc" % tableName))
-        self.assertEqual(dt.sort('vol asc').toDF().equals(s.run("select vol,symb,price from %s order by vol asc" % tableName)),True)
+        self.assertEqual(rs(dt.sort('vol asc').showSQL()), rs("select price,symb,vol from %s order by vol asc" % tableName))
+        self.assertEqual(dt.sort('vol asc').toDF().equals(s.run("select price,symb,vol from %s order by vol asc" % tableName)),True)
 
-        self.assertEqual(rs(dt.sort(['vol', 'int(price) desc']).showSQL()), rs("selectvol,symb,price from %s order by vol,int(price) desc" % tableName))
+        self.assertEqual(rs(dt.sort(['vol', 'int(price) desc']).showSQL()), rs("selectprice,symb,vol from %s order by vol,int(price) desc" % tableName))
         self.assertEqual(
-            dt.sort(['vol', 'int(price) desc']).toDF().equals(s.run("select vol,symb,price from %s order by vol,int(price) desc" % tableName)), True)
+            dt.sort(['vol', 'int(price) desc']).toDF().equals(s.run("select price,symb,vol from %s order by vol,int(price) desc" % tableName)), True)
 
         self.assertEqual(rs(dt['price'][(dt.price > 10) | (dt.vol < 5.5)].groupby('price,int(vol)').sort(['vol', 'int(price) desc']).showSQL()),
                          rs("select price from %s where ((price > 10) or (vol < 5.5)) group by price, int(vol) order by vol,int(price) desc" % tableName))
 
         self.assertEqual(rs(dt['price'].groupby('symb').showSQL()), rs('select price from %s group by symb' % tableName))
 
-
-        self.assertEqual(rs(dt.groupby('symb').sum().showSQL()), rs('select sum(vol),sum(price) from %s group by symb' % tableName))
-        self.assertEqual(dt.groupby('symb').sum().toDF().equals(s.run('select sum(vol),sum(price) from %s group by symb' % tableName)), True)
+        self.assertEqual(rs(dt.groupby('symb').sum().showSQL()), rs('select sum(price),sum(vol) from %s group by symb' % tableName))
+        self.assertEqual(dt.groupby('symb').sum().toDF().equals(s.run('select sum(price),sum(vol) from %s group by symb' % tableName)), True)
 
         self.assertEqual(rs(dt.groupby('symb').agg(['sum']).showSQL()),
-                         rs('select sum(vol),sum(price) from %s group by symb' % tableName))
-        self.assertEqual(dt.groupby('symb').agg(['sum']).toDF().equals(s.run('select sum(vol),sum(price) from %s group by symb' % tableName)),True)
+                         rs('select sum(price),sum(vol) from %s group by symb' % tableName))
+        self.assertEqual(dt.groupby('symb').agg(['sum']).toDF().equals(s.run('select sum(price),sum(vol) from %s group by symb ' % tableName)),True)
 
 
         self.assertEqual(rs(dt.groupby('symb').wsum(('price', 'vol')).showSQL()),
                          rs('select wsum(price,vol) from %s group by symb' % tableName))
-        self.assertEqual(dt.groupby('symb').wsum(('price', 'vol')).toDF().equals(s.run('select wsum(price,vol) from %s group by symb' % tableName)), True)
+        self.assertEqual(dt.groupby('symb').wsum(('price', 'vol')).toDF().equals(s.run('select wsum(price,vol) from %s group by symb ' % tableName)), True)
 
         self.assertEqual(rs(dt.groupby('symb').wsum([('price', 'vol'), ('vol', 'price')]).showSQL()),
                          rs('select wsum(price,vol),wsum(vol,price) from %s group by symb' % tableName))
@@ -104,7 +103,6 @@ class TestTable(unittest.TestCase):
         self.assertEqual(rs(dt.contextby('symb').agg({'price':[ddb.sum]}).showSQL()),
                          rs('select symb, sum(price) from %s context by symb' % tableName))
         print(dt.contextby('symb').agg({'price':[ddb.sum]}).showSQL())
-        #print dt.contextby('symb').agg({'price':[ddb.sum]}).toDF()
 
     def test_merge(self):
         print("\ntest_merge:")
@@ -127,36 +125,37 @@ class TestTable(unittest.TestCase):
 
         select = " id,vol,price,%s.id as %s_id,%s.vol as %s_vol,%s.price as %s_price" % (n2, n2, n2, n2, n2, n2)
         print(dt1.merge(dt2, left_on='id', right_on='id').showSQL())
-        print("select %s from ej(%s,%s,`id, `id)" % (select, n1, n2))
-
+        print("select * from ej(%s,%s,`id, `id)" % ( n1, n2))
+        print("*********************************")
+        print(dt1.merge(dt2, left_on='id', right_on='id').showSQL())
         self.assertEqual(rs(dt1.merge(dt2, left_on='id', right_on='id').showSQL()), \
-                         rs("select %s from ej(%s,%s,`id, `id)" \
-                            % (select, n1, n2)))
+                         rs("select * from ej(%s,%s,`id, `id)" \
+                            % (n1, n2)))
         print(dt1.merge(dt2, left_on='id', right_on='id').toDF())
 
         select = " id,vol,price,%s.id as %s_id,%s.vol as %s_vol,%s.price as %s_price" % (n2, n2, n2, n2, n2, n2)
         self.assertEqual(rs(dt1.merge(dt2, how='left', left_on='id', right_on='id').showSQL()), \
-                         rs("select %s from lj(%s,%s,`id, `id)" % (select, n1, n2)))
+                         rs("select * from lj(%s,%s,`id, `id)" % (n1, n2)))
         print(dt1.merge(dt2, how='left', left_on='id', right_on='id').toDF())
 
         select = " id,vol,price,%s.id as %s_id,%s.vol as %s_vol,%s.price as %s_price" % (n1, n1, n1, n1, n1, n1)
         self.assertEqual(rs(dt1.merge(dt2, how='right', left_on='id', right_on='id').showSQL()), \
-                         rs("select %s from lj(%s,%s,`id, `id)" % (select,  n2, n1)))
+                         rs("select * from lj(%s,%s,`id, `id)" % ( n2, n1)))
         print(dt1.merge(dt2, how='right', left_on='id', right_on='id').toDF())
 
         select = " id,vol,price,%s.id as %s_id,%s.vol as %s_vol,%s.price as %s_price" % (n2, n2, n2, n2, n2, n2)
         self.assertEqual(rs(dt1.merge(dt2, how='outer', left_on='id', right_on='id').showSQL()), \
-                         rs("select %s from fj(%s,%s,`id, `id)" % (select, n1, n2)))
+                         rs("select * from fj(%s,%s,`id, `id)" % ( n1, n2)))
         self.assertEqual(rs(dt1.merge(dt2, how='outer', left_on='id').showSQL()), \
-                         rs("select %s from fj(%s,%s,`id, `id)" % (select, n1, n2)))
+                         rs("select * from fj(%s,%s,`id, `id)" % (n1, n2)))
         self.assertEqual(rs(dt1.merge(dt2, how='outer', right_on='id').showSQL()), \
-                         rs("select %s from fj(%s,%s,`id, `id)" % (select, n1, n2)))
+                         rs("select * from fj(%s,%s,`id, `id)" % (n1, n2)))
         self.assertEqual(rs(dt1.merge(dt2, how='outer', on='id').showSQL()), \
-                         rs("select %s from fj(%s,%s,`id, `id)" % (select, n1, n2)))
+                         rs("select * from fj(%s,%s,`id, `id)" % (n1, n2)))
         print(dt1.merge(dt2, how='outer', left_on='id', right_on='id').toDF())
 
         self.assertEqual(rs(dt1.merge(dt2, how='outer', left_on='id', right_on='id').showSQL()), \
-                         rs("select %s from fj(%s,%s,`id, `id)" % (select, n1, n2)))
+                         rs("select * from fj(%s,%s,`id, `id)" % (n1, n2)))
         print(dt1.merge(dt2, how='outer', left_on='id', right_on='id').toDF())
 
     def test_merge_asof(self):
@@ -180,17 +179,18 @@ class TestTable(unittest.TestCase):
         select = " id,vol,price,%s.id as %s_id,%s.vol as %s_vol,%s.price as %s_price" % (n2, n2, n2, n2, n2, n2)
 
         print(dt1.merge_asof(dt2, on='vol').showSQL())
-        print("select %s from aj(%s,%s,`vol, `vol)" % (select, n1, n2))
+        print("select * from aj(%s,%s,`vol, `vol)" % (n1, n2))
         self.assertEqual(rs(dt1.merge_asof(dt2, on='vol').showSQL()),
-                         rs("select %s from aj(%s,%s,`vol, `vol)" % (select, n1, n2)))
+                         rs("select * from aj(%s,%s,`vol, `vol)" % (n1, n2)))
         print(dt1.merge_asof(dt2, on='vol').toDF())
 
     def test_merge_window(self):
-        s.run("db=database(\"" + WORK_DIR + "/windowJoin2\")")
+        if s.existsDatabase(WORK_DIR+"/windowJoin2"):
+            s.dropDatabase(WORK_DIR+"/windowJoin2")
+        s.database(dbName='db', dbPath=WORK_DIR+"/windowJoin2")
         s.run("t1 = table(`A`A`B as sym, 09:56:06 09:56:07 09:56:06 as time, 10.6 10.7 20.6 as price)")
         s.run("saveTable(db, t1, `t1)")
-        s.run(
-            "t2 = table(take(`A,10) join take(`B,10) as sym, take(09:56:00+1..10,20) as time, (10+(1..10)\ 10-0.05) join (20+(1..10)\ 10-0.05) as bid, (10+(1..10)\ 10+0.05) join (20+(1..10)\ 10+0.05) as offer, take(100 300 800 200 600, 20) as volume);")
+        s.run("t2 = table(take(`A,10) join take(`B,10) as sym, take(09:56:00+1..10,20) as time, (10+(1..10)\ 10-0.05) join (20+(1..10)\ 10-0.05) as bid, (10+(1..10)\ 10+0.05) join (20+(1..10)\ 10+0.05) as offer, take(100 300 800 200 600, 20) as volume);")
         s.run("saveTable(db, t2, `t2)")
         s.run("t3=t2")
         s.run("t3.rename!(`time, `second)")
@@ -212,32 +212,32 @@ class TestTable(unittest.TestCase):
         df4 = dt4.toDF()
         print(df4)
 
-        print(dt1.merge_window(dt2, on='sym`time', aggFunctions='<avg(bid)>', leftBound=-5, rightBound=0, ).showSQL())
-        print(dt1.merge_window(dt2, on='sym`time', aggFunctions='<avg(bid)>', leftBound=-5, rightBound=0, ).toDF())
+        print(dt1.merge_window(dt2, on='sym`time', aggFunctions='avg(bid)', leftBound=-5, rightBound=0, ).showSQL())
+        print(dt1.merge_window(dt2, on='sym`time', aggFunctions='avg(bid)', leftBound=-5, rightBound=0, ).toDF())
 
-        print(dt1.merge_window(dt2, on='sym`time', aggFunctions=' <[wavg(bid,volume), wavg(offer,volume)]>', leftBound=-5,
+        print(dt1.merge_window(dt2, on='sym`time', aggFunctions='[wavg(bid,volume), wavg(offer,volume)]', leftBound=-5,
                                rightBound=-1, ).showSQL())
-        print(dt1.merge_window(dt2, on='sym`time', aggFunctions=' <[wavg(bid,volume), wavg(offer,volume)]>', leftBound=-5,
+        print(dt1.merge_window(dt2, on='sym`time', aggFunctions='[wavg(bid,volume), wavg(offer,volume)]', leftBound=-5,
                                rightBound=-1, ).toDF())
 
-        print(dt1.merge_window(dt3, left_on='sym`time', right_on="sym`second", aggFunctions=' <[wavg(bid,volume), wavg(offer,volume)]>', leftBound=-2,
+        print(dt1.merge_window(dt3, left_on='sym`time', right_on="sym`second", aggFunctions='[wavg(bid,volume), wavg(offer,volume)]', leftBound=-2,
                                rightBound=2, ).showSQL())
-        print(dt1.merge_window(dt3, left_on='sym`time', right_on="sym`second", aggFunctions=' <[wavg(bid,volume), wavg(offer,volume)]>', leftBound=-2,
+        print(dt1.merge_window(dt3, left_on='sym`time', right_on="sym`second", aggFunctions='[wavg(bid,volume), wavg(offer,volume)]', leftBound=-2,
                                rightBound=2, ).toDF())
 
-        print(dt1.merge_window(dt2, on='sym`time', aggFunctions='<[last(bid) as bid, last(offer) as offer]>', leftBound=-100, rightBound=0, ).showSQL())
-        print(dt1.merge_window(dt2, on='sym`time', aggFunctions='<[last(bid) as bid, last(offer) as offer]>', leftBound=-100, rightBound=0, ).toDF())
+        print(dt1.merge_window(dt2, on='sym`time', aggFunctions='[last(bid) as bid, last(offer) as offer]', leftBound=-100, rightBound=0, ).showSQL())
+        print(dt1.merge_window(dt2, on='sym`time', aggFunctions='[last(bid) as bid, last(offer) as offer]', leftBound=-100, rightBound=0, ).toDF())
 
-        print(dt1.merge_window(dt2, on='sym`time', aggFunctions='<avg(bid)>', leftBound=-5, rightBound=0, ).showSQL())
-        print(dt1.merge_window(dt2, on='sym`time', aggFunctions='<avg(bid)>', leftBound=-5, rightBound=0, ).toDF())
+        print(dt1.merge_window(dt2, on='sym`time', aggFunctions='avg(bid)', leftBound=-5, rightBound=0, ).showSQL())
+        print(dt1.merge_window(dt2, on='sym`time', aggFunctions='avg(bid)', leftBound=-5, rightBound=0, ).toDF())
 
-        print(dt1.merge_window(dt4, on='sym`time', aggFunctions='<[first(bid), avg(offer)]>', leftBound=-1,
+        print(dt1.merge_window(dt4, on='sym`time', aggFunctions='[first(bid), avg(offer)]', leftBound=-1,
                                rightBound=1, ).showSQL())
-        print(dt1.merge_window(dt4, on='sym`time', aggFunctions='<[first(bid), avg(offer)]>', leftBound=-1,
+        print(dt1.merge_window(dt4, on='sym`time', aggFunctions='[first(bid), avg(offer)]', leftBound=-1,
                                rightBound=1, ).toDF())
 
-        print(dt1.merge_window(dt4, on='sym`time', aggFunctions=' <[first(bid), avg(offer)]>', leftBound=-1, rightBound=1, prevailing=True).showSQL())
-        print(dt1.merge_window(dt4, on='sym`time', aggFunctions=' <[first(bid), avg(offer)]>', leftBound=-1, rightBound=1, prevailing=True).toDF(), )
+        print(dt1.merge_window(dt4, on='sym`time', aggFunctions='[first(bid), avg(offer)]', leftBound=-1, rightBound=1, prevailing=True).showSQL())
+        print(dt1.merge_window(dt4, on='sym`time', aggFunctions='[first(bid), avg(offer)]', leftBound=-1, rightBound=1, prevailing=True).toDF(), )
 
 
     def test_pull_remote_table(self):
@@ -249,11 +249,13 @@ class TestTable(unittest.TestCase):
         share table(rand(`APPL`A`AMNZ`GOOG, n) as symb, int(rand(100,n) + 1) as vol, rand(200, n) as price) as t
 
         """
-        dt = s.table(dbPath=WORK_DIR+"/PY_USPRICES_SMALL", data="USPricesSmall", inMem=True)
+        s.run("n = 100000")
+        s.run("share table(rand(`APPL`A`AMNZ`GOOG, n) as symb, int(rand(100,n) + 1) as vol, rand(200, n) as price) as t")
+        dt = s.table(data="t")
         df = dt.toDF()
         print(df)
-        self.assertEqual(len(df.index), s.run("size(USPricesSmall)"))
-        df = dt.groupby("sym").agg2('wavg', ('prc', 'vol')).toDF()
+        self.assertEqual(len(df.index), s.run("size(t)"))
+        df = dt.groupby("symb").agg2('wavg', ('price', 'vol')).toDF()
         print(df)
 
 if __name__ == '__main__':
