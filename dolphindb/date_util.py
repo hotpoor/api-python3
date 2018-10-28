@@ -1,4 +1,4 @@
-import math
+import numpy as np
 from datetime import datetime,date, time
 from .settings import *
 
@@ -6,7 +6,7 @@ DISPLAY_ROWS = 20
 DISPLAY_COLS = 100
 DISPLAY_WIDTH = 100
 
-cumMonthDays = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334, 365]
+cumMonthDays = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334, 365, 0, 0,59,0]
 cumLeapMonthDays = [0, 31, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335, 366]
 monthDays = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
 leapMonthDays = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
@@ -42,9 +42,16 @@ class Date(temporal):
 
     @classmethod
     def isnull(cls, obj):
+        try:
+            if np.isnan(obj):
+                return True
+        except:
+            pass
         return obj.value == DBNAN[DT_DATE]
 
     def to_date(self):
+        if self.value == DBNAN[DT_DATE]:
+            return np.nan
         return parseDate(self.value)
 
     def __repr__(self):
@@ -67,9 +74,13 @@ class Month(temporal):
 
     @classmethod
     def isnull(cls, obj):
+        if np.isnan(obj):
+            return True
         return obj.value == DBNAN[DT_MONTH]
 
     def to_date(self):
+        if self.value == DBNAN[DT_MONTH]:
+            return np.nan
         return date(int(self.value/12), int(self.value % 12) + 1, 1)
 
     def __repr__(self):
@@ -90,9 +101,13 @@ class Time(temporal):
 
     @classmethod
     def isnull(cls, obj):
+        if np.isnan(obj):
+            return True
         return obj.value == DBNAN[DT_TIME]
 
     def to_time(self):
+        if self.value == DBNAN[DT_TIME]:
+            return np.nan
         return time(int(self.value / 3600000), int(self.value / 60000 % 60), int(self.value / 1000 % 60), int(self.value % 1000 * 1000))
 
     def __repr__(self):
@@ -139,6 +154,8 @@ class Second(temporal):
         return obj.value == DBNAN[DT_SECOND]
 
     def to_time(self):
+        if self.value == DBNAN[DT_SECOND]:
+            return np.nan
         return time(int(self.value / 3600), int(self.value % 3600 / 60), int(self.value % 60))
 
     def __repr__(self):
@@ -163,6 +180,7 @@ class Datetime(temporal):
 
     def to_datetime(self):
         return parseDateTime(self.value)
+
 
     def __repr__(self):
         if self.value == DBNAN[DT_DATETIME]: return ''
@@ -292,10 +310,38 @@ def parseDate(days):
         day=int(days-cumLeapMonthDays[month-1])
     else:
         month = int(days / 32+1)
+
         if days > cumMonthDays[month]:
             month += 1
+
         day=int(days - cumMonthDays[month-1])
+
     return date(year, month, day)
+
+#usage: import dolphindb.date_util as dd
+# dd.reverseParseDate(date object)
+def reverseParseDate(date):
+
+    year = date.year
+    month = date.month
+    day = date.day
+
+    fourYears = int(year/4) + 1
+
+    yearsDay = year * 365 + fourYears;
+    mDay = 0;
+
+
+    cMonth = month -1
+
+    for i in range(cMonth):
+        mDay += monthDays[i];
+
+    if int(year%4) == 0 and mDay < 59:
+        return yearsDay + mDay + day - 719545
+    else:
+        return yearsDay + mDay + day - 719544
+
 
 def countDateTimeSeconds(date_time):
     days = countDays(date_time.date())
