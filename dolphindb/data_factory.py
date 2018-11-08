@@ -338,7 +338,7 @@ DATA_PACKER_SCALAR[DT_DATETIME] = lambda x: Struct(endianness('i')).pack(x.value
 DATA_PACKER_SCALAR[DT_TIMESTAMP] = lambda x: Struct(endianness('q')).pack(x.value)
 DATA_PACKER_SCALAR[DT_NANOTIME] = lambda x: Struct(endianness('q')).pack(x.value)
 DATA_PACKER_SCALAR[DT_NANOTIMESTAMP] = lambda x: Struct(endianness('q')).pack(x.value)
-DATA_PACKER_SCALAR[DT_DATETIME64] = lambda x: Struct(endianness('q')).pack(x)
+#DATA_PACKER_SCALAR[DT_DATETIME64] = lambda x: Struct(endianness('q')).pack(x)
 
 """ pack from numpy 1D array """
 DATA_PACKER = dict()
@@ -356,7 +356,7 @@ DATA_PACKER[DT_DATETIME] = lambda x: Struct(endianness("%di" % x.size)).pack(*ma
 DATA_PACKER[DT_TIMESTAMP] = lambda x: Struct(endianness("%dq" % x.size)).pack(*map(lambda y: y.value, x))
 DATA_PACKER[DT_NANOTIME] = lambda x: Struct(endianness("%dq" % x.size)).pack(*map(lambda y: y.value, x))
 DATA_PACKER[DT_NANOTIMESTAMP] = lambda x: Struct(endianness("%dq" % x.size)).pack(*map(lambda y: y.value, x))
-DATA_PACKER[DT_DATETIME64] = lambda x: Struct(endianness("%dq" % x.size)).pack(*map(lambda y: y, x))
+#DATA_PACKER[DT_DATETIME64] = lambda x: Struct(endianness("%dq" % x.size)).pack(*map(lambda y: y.value, x))
 
 """ pack from numpy multi-dimensional array """
 DATA_PACKER2D = dict()
@@ -374,4 +374,4 @@ DATA_PACKER2D[DT_DATETIME] = lambda x: Struct(endianness("%di" % x.size)).pack(*
 DATA_PACKER2D[DT_TIMESTAMP] = lambda x: Struct(endianness("%dq" % x.size)).pack(*map(lambda y:y.value, x.T.flat))
 DATA_PACKER2D[DT_NANOTIME] = lambda x: Struct(endianness("%dq" % x.size)).pack(*map(lambda y:y.value, x.T.flat))
 DATA_PACKER2D[DT_NANOTIMESTAMP] = lambda x: Struct(endianness("%dq" % x.size)).pack(*map(lambda y:y.value, x.T.flat))
-DATA_PACKER[DT_DATETIME64] = lambda x: Struct(endianness("%dq" % x.size)).pack(*map(lambda y:y, x.T.flat))
+#DATA_PACKER2D[DT_DATETIME64] =lambda x: Struct(endianness("%dq" % x.size)).pack(*map(lambda y:y.value, x.T.flat))

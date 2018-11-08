@@ -224,6 +224,11 @@ class session(object):
         # so we handle it seperately
         if dbType == 100:
             flag = (dbForm << 8) + DT_NANOTIMESTAMP
+            dbType = DT_NANOTIMESTAMP
+            if isinstance(obj, list) or (isinstance(obj, np.ndarray) and dbForm == DF_VECTOR):
+                obj = NanoTimestamp.from_vec_datetime64(obj)
+            else:
+                obj = NanoTimestamp.from_datetime64(obj)
         else:
             flag = (dbForm << 8) + dbType
         tmp += (DATA_PACKER_SCALAR[DT_SHORT](flag))

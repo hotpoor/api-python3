@@ -1,6 +1,7 @@
 import numpy as np
 from datetime import datetime,date, time
 from .settings import *
+import pandas as pd
 
 DISPLAY_ROWS = 20
 DISPLAY_COLS = 100
@@ -242,6 +243,15 @@ class NanoTimestamp(temporal):
         return cls(countNanoseconds(date_time))
 
     @classmethod
+    def from_datetime64(cls,dt64):
+        ts = pd.Timestamp(dt64)
+        return NanoTimestamp.from_datetime(ts)
+
+    @classmethod
+    def from_vec_datetime64(cls, vec):
+        return np.array([NanoTimestamp.from_datetime(pd.Timestamp(dt64)) for dt64 in vec])
+
+    @classmethod
     def null(cls):
         return cls(DBNAN[DT_NANOTIMESTAMP])
 
@@ -255,7 +265,7 @@ class NanoTimestamp(temporal):
     def __repr__(self):
         if self.value == DBNAN[DT_NANOTIMESTAMP]: return ''
         dt = parseNanoTimestamp(self.value)
-        return "{0:04d}.{1:02d}.{2:02d}T{3:02d}:{4:02d}:{5:02d}.{6:09d}".format(dt.year, dt.month, dt.day, dt.hour,dt.minute, dt.second, self.value)
+        return "{0:04d}.{1:02d}.{2:02d}T{3:02d}:{4:02d}:{5:02d}.{6:09d}".format(dt.year, dt.month, dt.day, dt.hour,dt.minute, dt.second, int(self.value % 1000000000))
 
 
 def countDays(date):
@@ -353,6 +363,8 @@ def countMilliseconds(date_time):
 
 def countNanoseconds(date_time):
     return countDateTimeSeconds(date_time) * 1000000000 + int(date_time.microsecond * 1000)
+
+
 
 def countNanotime(time):
     secs = (time.hour * 60 + time.minute) * 60 + time.second
