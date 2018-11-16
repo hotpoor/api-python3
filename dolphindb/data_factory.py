@@ -7,7 +7,6 @@ from .type_util import swap
 import numpy as np
 import pandas as pd
 
-
 def get_form_type(socket):
     """
     Read the data form and type
@@ -172,15 +171,45 @@ def table_generator(socket):
         elif data_type in [DT_DATE, DT_MONTH, DT_MINUTE, DT_TIME, DT_TIMESTAMP, DT_SECOND, DT_NANOTIME, DT_NANOTIMESTAMP, DT_DATETIME]:
             col = VECTOR_FACTORY[data_type](socket)
             if data_type in [DT_DATE, DT_MONTH]:
-                col = [np.datetime64(d.to_date()) for d in col]
+                col_new = []
+                for d in col:
+                    try:
+                        col_new.append(np.datetime64(d.to_date()))
+                    except:
+                        col_new.append(np.datetime64('NaT'))
+                col = col_new
             elif data_type in [DT_DATETIME, DT_TIMESTAMP]:
-                col = np.array([np.datetime64(d.to_datetime()) for d in col])
+                col_new = []
+                for d in col:
+                    try:
+                        col_new.append(np.datetime64(d.to_datetime()))
+                    except:
+                        col_new.append(np.datetime64('NaT'))
+                col = col_new
             elif data_type in [DT_TIME, DT_SECOND, DT_MINUTE]:
-                col = np.array([d.to_time() for d in col])
-            elif data_type in [DT_NANOTIME, DT_DATETIME64]:
-                col = np.array([d.to_nanotime() for d in col])
+                col_new = []
+                for d in col:
+                    try:
+                        col_new.append(np.datetime64(d.to_datetime()))
+                    except:
+                        col_new.append(np.datetime64('NaT'))
+                col = col_new
+            elif data_type in [DT_NANOTIME]:
+                col_new = []
+                for d in col:
+                    try:
+                        col_new.append(d.todatetime64())
+                    except:
+                        col_new.append(np.datetime64('NaT'))
+                col = col_new
             elif data_type in [DT_NANOTIMESTAMP]:
-                col = np.array([np.datetime64(d.to_nanotimestamp()) for d in col])
+                col_new = []
+                for d in col:
+                    try:
+                        col_new.append(np.datetime64(d.to_nanotimestamp()))
+                    except:
+                        col_new.append(np.datetime64('NaT'))
+                col = col_new
         else:
             col = VECTOR_FACTORY[data_type](socket)
         df[colNames[i]] = col
