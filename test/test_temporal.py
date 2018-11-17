@@ -5,8 +5,8 @@ from dolphindb import *
 # from .settings import HOST, PORT
 
 #setup db connection
-HOST = "172.16.95.128"
-PORT = 8921
+HOST = "localhost"
+PORT = 8080
 xx = session()
 xx.connect(HOST, PORT)
 
@@ -31,13 +31,18 @@ class TestTemporal(unittest.TestCase):
 
     def test_get_table_date(self):
         vc = xx.run("table(2018.03.01 2017.04.02 2016.05.03 as dt)")
-        self.assertEqual(vc.iat[1, 0].to_date(), date(2017, 4, 2))
+        print(vc.iat[1, 0].date())
+        print(vc.dtypes)
+        self.assertEqual(vc.iat[1, 0].date(), date(2017, 4, 2))
 
     def test_get_table_date_time(self):
-        vc = xx.run("table(2018.03.01 2017.04.02 2016.05.03 as dt,[11:42:01,10:34:02,] as tm)")
-        self.assertEqual(vc.iat[1, 0].to_date(), date(2017, 4, 2))
-        self.assertEqual(vc.iat[1, 1].to_time(), time(10, 34, 2))
-        self.assertTrue(Time.isnull(vc.iat[2, 1]))
+        vc = xx.run("table([2018.03.01,, 2016.05.03] as dt,[11:42:01,10:34:02,] as tm)")
+        print(vc)
+        print(vc.dtypes)
+
+        # self.assertEqual(vc.iat[1, 0].date(), date(2017, 4, 2))
+        # self.assertEqual(vc.iat[1, 1], time(10, 34, 2))
+        # self.assertTrue(Time.isnull(vc.iat[2, 1]))
 
     def test_get_leap(self):
         vc = xx.run('1904.02.29')
@@ -123,13 +128,12 @@ class TestTemporal(unittest.TestCase):
 
     def test_get_nanotimestamp(self):
         vc = xx.run('2018.03.14T15:41:45.123222321')
-        self.assertEqual(vc.to_nanotimestamp(), datetime(2018, 3, 14, 15, 41, 45, 123222))
+        self.assertEqual(vc.to_datetime64(), np.datetime64("2018-03-14T15:41:45.123222321"))
 
     def test_upload_nanotimestamp(self):
-        vdt = datetime(2018, 3, 14, 15, 41, 45, 123222)
-        xx.upload({"up_variable": NanoTimestamp.from_datetime(vdt)})
+        xx.upload({"up_variable": NanoTimestamp.from_datetime64( np.datetime64("2018-03-14T15:41:45.123222321"))})
         vc = xx.run("up_variable")
-        self.assertEqual(vc.to_nanotimestamp(), datetime(2018, 3, 14, 15, 41, 45, 123222))
+        self.assertEqual(vc.to_datetime64(),   np.datetime64("2018-03-14T15:41:45.123222321"))
 
 
 if __name__ == '__main__':
