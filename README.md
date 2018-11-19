@@ -52,7 +52,7 @@ if success:
 
 For more examples, please refer to python api tutorial:
 
-The jupter notebook tutorial here[tutorial.ipynb]
+The jupter notebook tutorial [here](tutorial.ipynb)
 
 or
 
