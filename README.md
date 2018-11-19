@@ -52,6 +52,10 @@ if success:
 
 For more examples, please refer to python api tutorial:
 
+The jupter notebook tutorial here[tutorial.ipynb]
+
+or
+
 https://github.com/dolphindb/Tutorials_EN/blob/master/python_api.md
 
 ###  Package introduction
