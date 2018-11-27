@@ -24,7 +24,7 @@ def recvall(socket, n):
     # print(socket)
     while len((data)) < n:
         # print(socket,'before')
-        ready = select.select([socket], [], [], 1)
+        ready = select.select([socket], [], [])
         # print(ready[0])
         if not ready[0]:
             # print(1)
