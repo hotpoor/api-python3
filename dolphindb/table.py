@@ -80,6 +80,8 @@ class Table(object):
             raise RuntimeError("data must be a remote dolphindb table name or dict or DataFrame")
         self._init_schema()
 
+
+
     def __deepcopy__(self, memodict={}):
         newTable = Table(data=self.__tableName, schemaInited=True, s=self.__session)
         try:

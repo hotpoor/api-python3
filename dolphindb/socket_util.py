@@ -2,7 +2,6 @@ import select
 
 
 def sendall(socket, msg, objs=b""):
-    # print("ppppppppppp")
     totalsent = 0
     MSGLEN = len(msg)
     while totalsent < MSGLEN:
@@ -21,18 +20,15 @@ def sendall(socket, msg, objs=b""):
 def recvall(socket, n):
     # Helper function to recv n bytes or return None if EOF is hit
     data = b''
-    # print(socket)
+    socket.setblocking(1)
     while len((data)) < n:
-        # print(socket,'before')
-        ready = select.select([socket], [], [])
-        # print(ready[0])
-        if not ready[0]:
-            # print(1)
-            return data
+        # ready = select.select([socket], [], [])
+        # if not ready[0]:
+        #     return data
         packet = socket.recv(n - len((data)))
         if not packet:
             # print(2)
-            return None
+            break
 
         data += packet
     # print(len((data)))
@@ -41,18 +37,19 @@ def recvall(socket, n):
 def recvallhex(socket, n):
     # Helper function to recv n bytes or return None if EOF is hit
     data = ''
+    socket.setblocking(1)
     while len(bytes.fromhex(data)) < n:
-        ready = select.select([socket], [], [], 1)
-        if not ready[0]:
-
-            return data
+        # ready = select.select([socket], [], [], 1)
+        # if not ready[0]:
+        #     return data
         packet = socket.recv(n - len(bytes.fromhex(data)))
         if not packet:
 
-            return None
+            break
 
         data += packet.hex()
     return data
+
 
 def readline(socket):
     data = ''

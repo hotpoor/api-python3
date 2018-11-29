@@ -198,7 +198,7 @@ def table_generator(socket):
                 col_new = []
                 for d in col:
                     try:
-                        col_new.append(d.todatetime64())
+                        col_new.append(d.to_datetime64())
                     except:
                         col_new.append(np.datetime64('NaT'))
                 col = col_new
@@ -206,7 +206,7 @@ def table_generator(socket):
                 col_new = []
                 for d in col:
                     try:
-                        col_new.append(np.datetime64(d.to_nanotimestamp()))
+                        col_new.append(d.to_datetime64())
                     except:
                         col_new.append(np.datetime64('NaT'))
                 col = col_new

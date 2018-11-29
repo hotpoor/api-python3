@@ -13,6 +13,7 @@ from threading import Thread, Lock
 
 def _generate_tablename():
     return "TMP_TBL_" + uuid.uuid4().hex[:8]
+
 def _generate_dbname():
     return "TMP_DB_" + uuid.uuid4().hex[:8]+"DB"
 
@@ -222,7 +223,7 @@ class session(object):
         # we use nanotimestamp for it
         # however, packing value is different from other datatypes
         # so we handle it seperately
-        if dbType == 100:
+        if dbType == DT_DATETIME64:
             flag = (dbForm << 8) + DT_NANOTIMESTAMP
             dbType = DT_NANOTIMESTAMP
             if isinstance(obj, list) or (isinstance(obj, np.ndarray) and dbForm == DF_VECTOR):
@@ -242,8 +243,6 @@ class session(object):
             tmp += DATA_PACKER_SCALAR[DT_INT](len(obj))
             tmp += DATA_PACKER_SCALAR[DT_INT](1)
             for val in obj:
-                # print(dbType)
-                # print(type(val))
                 tmp += DATA_PACKER_SCALAR[dbType](val)
         elif isinstance(obj, dict):
             tmp += self.write_python_obj(list(obj.keys()), message)
