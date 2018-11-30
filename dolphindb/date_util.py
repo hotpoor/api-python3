@@ -1,7 +1,7 @@
 import numpy as np
 from datetime import datetime,date, time
 from .settings import *
-import pandas as pd
+import warnings
 
 DISPLAY_ROWS = 20
 DISPLAY_COLS = 100
@@ -13,6 +13,29 @@ monthDays = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
 leapMonthDays = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
 START_DATE = date(2000, 0o01, 0o01)
 DEFAULT_YEAR=1970
+
+#
+# class Bool(object):
+#     def __init__(self, val):
+#         self.__value = val
+#
+#     @property
+#     def value(self):
+#         return self.__value
+#
+#     @classmethod
+#     def null(cls):
+#         return cls(DBNAN[DT_BOOL])
+#
+#     @classmethod
+#     def isnull(cls, obj):
+#         try:
+#             if np.isnan(obj):
+#                 return True
+#         except:
+#             pass
+#         return obj.value == DBNAN[DT_BOOL]
+
 
 
 class temporal(object):
@@ -29,6 +52,7 @@ class temporal(object):
     #     if isinstance(other, self.__class__): return self.__value == other.__value
     #     if isinstance(other, int) or isinstance(other, long): return self.__value == other
     #     return False
+
 
 
 class Date(temporal):
@@ -95,7 +119,7 @@ class Time(temporal):
     @classmethod
     def from_time(cls, time):
         """create a time instance given datetime.time object"""
-        return cls(((time.hour * 60 + time.minute) * 60 + time.second) * 1000 + int(time.microsecond/1000))
+        return cls(((time.hour * 60 + time.minute) * 60 + time.second) * 1000 + time.microsecond)
 
     @classmethod
     def null(cls):
@@ -117,7 +141,8 @@ class Time(temporal):
         return "{0:02d}:{1:02d}:{2:02d}.{3:03d}".format(int(self.value / 3600000), int(self.value / 60000 % 60), int(self.value / 1000 % 60), int(self.value % 1000))
 
     def to_datetime(self):
-        return datetime(DEFAULT_YEAR,1,1, int(self.value / 3600000), int(self.value / 60000 % 60), int(self.value / 1000 % 60), int(self.value % 1000))
+        return datetime(DEFAULT_YEAR,1,1, int(self.value / 3600000), int(self.value / 60000 % 60), int(self.value / 1000 % 60), int(self.value % 1000 * 1000))
+
 
 class Minute(temporal):
 
@@ -127,7 +152,7 @@ class Minute(temporal):
         return cls(time.hour * 60 + time.minute)
 
     @classmethod
-    def null(cls, obj):
+    def null(cls):
         return cls(DBNAN[DT_MINUTE])
 
     @classmethod
@@ -143,7 +168,7 @@ class Minute(temporal):
 
     def to_datetime(self):
         if self.value == DBNAN[DT_MINUTE]: return np.nan
-        return datetime(DEFAULT_YEAR,1,1, int(self.value / 3600), int(self.value % 3600 / 60), 0)
+        return datetime(DEFAULT_YEAR,1,1, int(self.value / 60), int(self.value % 60), 0)
 
 
 class Second(temporal):
@@ -263,6 +288,12 @@ class NanoTimestamp(temporal):
 
     @classmethod
     def from_datetime64(cls,dt64):
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            if dt64 == np.datetime64('NaT') or dt64 is None:
+                print(cls(DBNAN[DT_NANOTIMESTAMP]))
+                return cls(DBNAN[DT_NANOTIMESTAMP])
+        print(cls(dt64.astype(object)))
         return cls(dt64.astype(object))
 
     @classmethod
@@ -388,7 +419,7 @@ def countDateTimeSeconds(date_time):
 
 
 def countMilliseconds(date_time):
-    return countDateTimeSeconds(date_time) * 1000 + int(date_time.microsecond/1000)
+    return countDateTimeSeconds(date_time) * 1000 + date_time.microsecond
 
 def countNanoseconds(date_time):
     return countDateTimeSeconds(date_time) * 1000000000 + int(date_time.microsecond * 1000)
@@ -418,7 +449,7 @@ def parseTimestamp(milliseconds):
     milliseconds = int(milliseconds % 86400000)
     if (milliseconds < 0):
         milliseconds += 86400000
-    microsecond = int(milliseconds % 1000 * 1000)
+    microsecond = int(milliseconds % 1000)
     seconds = int(milliseconds / 1000)
     hour = int(seconds / 3600)
     seconds = int(seconds % 3600)

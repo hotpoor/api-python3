@@ -64,9 +64,11 @@ doubleNan = nan(DT_DOUBLE)
 
 def swap(val, dt_type=None):
     # when write to xxdb, for a null object of a given type, returns xxdb representation
-    if isinstance(val, nan): return DBNAN[val.type]
+    if isinstance(val, nan):
+        return DBNAN[val.type]
     # when read number types from xxdb, if xxdb object is nan, create a null instance.
-    if dt_type and val == DBNAN[dt_type]: return np.nan  #nan(dt_type) : changed from nan(dt_type) to np.nan as this is used for numpy
+    if dt_type and val == DBNAN[dt_type]:
+        return nan(dt_type)  #nan(dt_type) : changed from nan(dt_type) to np.nan as this is used for numpy
     return val
 
 

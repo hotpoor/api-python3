@@ -3,7 +3,7 @@ from .date_util import *
 from dolphindb.socket_util import read_string, recvall, recvallhex
 from .pair import Pair
 from .settings import *
-from .type_util import swap
+from .type_util import *
 import numpy as np
 import pandas as pd
 
@@ -47,9 +47,17 @@ def read_dolphindb_obj_general(socket):
             obj = DATA_LOADER[data_form][data_type](socket)
             if data_type == DT_BOOL:
                 if data_form == DF_SCALAR:
+                    if isinstance(obj, nan) or obj is None or np.isnan(obj):
+                        return boolNan
                     return bool(obj)
                 else:
-                    return np.array(obj, dtype=bool)
+                    obj_new = []
+                    for o in obj:
+                        if isinstance(o, nan) or o is None or np.isnan(o):
+                            obj_new.append(boolNan)
+                        else:
+                            obj_new.append(bool(o))
+                    obj = obj_new
             return obj
         else:
             return None
@@ -83,9 +91,9 @@ def vec_generator(socket, data_type):
             data += packet
         (data.split('\x00\x00')[0].split('\x00')[:size])
         """
-        return np.array(vc, dtype=object)
+        return vc#np.array(vc, dtype=object)
     else:
-        return np.array(list(DATA_UNPACKER[data_type](socket, size)))
+        return list(DATA_UNPACKER[data_type](socket, size))
 
 
 def vector_factory_any(socket):
@@ -168,6 +176,19 @@ def table_generator(socket):
             raise Exception("column " + colNames[i] + "in table " + tableName + " must be a vector!")
         if data_type in [DT_SYMBOL, DT_STRING]:
             col = table_str_col_generator(socket)
+        elif data_type == DT_INT:
+            col = VECTOR_FACTORY[data_type](socket)
+        elif data_type == DT_BOOL:
+            col = VECTOR_FACTORY[data_type](socket)
+            col_new = []
+            for o in col:
+                if o == 1:
+                    col_new.append(True)
+                elif o== 0:
+                    col_new.append(False)
+                else:
+                    col_new.append(boolNan)
+            col = col_new
         elif data_type in [DT_DATE, DT_MONTH, DT_MINUTE, DT_TIME, DT_TIMESTAMP, DT_SECOND, DT_NANOTIME, DT_NANOTIMESTAMP, DT_DATETIME]:
             col = VECTOR_FACTORY[data_type](socket)
             if data_type in [DT_DATE, DT_MONTH]:
@@ -190,7 +211,8 @@ def table_generator(socket):
                 col_new = []
                 for d in col:
                     try:
-                        col_new.append(np.datetime64(d.to_datetime()))
+                        dt = d.to_datetime()
+                        col_new.append(np.datetime64(dt))
                     except:
                         col_new.append(np.datetime64('NaT'))
                 col = col_new
