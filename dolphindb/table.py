@@ -24,8 +24,9 @@ def normalize_caseless(text):
 
 
 class Table(object):
-    def __init__(self, dbPath=None, data=None,  tableAliasName=None, partitions=[], inMem=False, schemaInited=False,
-                 s=None):
+    def __init__(self, dbPath=None, data=None,  tableAliasName=None, partitions=None, inMem=False, schemaInited=False, s=None):
+        if partitions is None:
+            partitions = []
         self.__having = None
         self.__top = None
         self.__exec = False
@@ -35,15 +36,19 @@ class Table(object):
         if s is None:
             raise RuntimeError("session must be provided")
         self.__tableName = _generate_tablename() if not isinstance(data, str) else data
-        self.__session = s  # type: session
+        self.__session = s  # type : session
         self.__schemaInited = schemaInited
         if not isinstance(partitions, list):
             raise RuntimeError(
                 'Column names must be passed in as a list')
         if isinstance(data, dict) or isinstance(data, DataFrame):
             df = data if isinstance(data, DataFrame) else DataFrame(data)
-            if  not self.__tableName.startswith("TMP_TBL_"):
+            #if  not self.__tableName.startswith("TMP_TBL_"):
+            #    self._setTableName(_generate_tablename())
+            if tableAliasName is None:
                 self._setTableName(_generate_tablename())
+            else:
+                self._setTableName(tableAliasName)
             self.__session.upload({self.__tableName: df})
             self.vecs = {}
 
@@ -69,20 +74,19 @@ class Table(object):
                     fmtDict['partitions'] = ('["' + '","'.join(partitions) + '"]') if len(partitions) else ""
                 fmtDict['inMem'] = str(inMem).lower()
                 runstr = re.sub(' +', ' ', runstr.format(**fmtDict).strip())
-                # print(runstr)
                 self.__session.run(runstr)
                 # runstr = '%s = select * from %s' %(self.__tableName, self.__tableName)
                 # self.__session.run(runstr)
             else:
-                # print "ll"
                 pass
         else:
             raise RuntimeError("data must be a remote dolphindb table name or dict or DataFrame")
         self._init_schema()
 
 
-
-    def __deepcopy__(self, memodict={}):
+    def __deepcopy__(self, memodict=None):
+        if memodict is None:
+            memodict = {}
         newTable = Table(data=self.__tableName, schemaInited=True, s=self.__session)
         try:
             newTable.vecs = copy.deepcopy(self.vecs, memodict)
@@ -460,22 +464,22 @@ class Table(object):
     def merge_window(self, right, leftBound=None, rightBound=None, aggFunctions=None, on=None, left_on=None, right_on=None, prevailing=False):
 
         """
-                window merge two tables on some columns.
-                see http://www.dolphindb.com/help/index.html?asofjoin.html
+        window merge two tables on some columns.
+        see http://www.dolphindb.com/help/index.html?asofjoin.html
 
-                :param right: right table or the name of the right table on remote server
-                :param on: column or list of columns
-                    columns to join on, must be present on both tables.
-                :param left_on: column or list of columns
-                    left table columns to join on, default to on if None
-                :param right_on: column or list of columns
-                    right table columns to join on, default to on if None
-                :param :prevailing: if using the prevailing window join
-                :param :leftBound:  the left bound (inclusive) of the window relative to the records in the left table
-                :param :rightBound:  the right bound (inclusive) of the window relative to the records in the left table
-                :return: merged Table object
-
+        :param right: right table or the name of the right table on remote server
+        :param on: column or list of columns
+            columns to join on, must be present on both tables.
+        :param left_on: column or list of columns
+            left table columns to join on, default to on if None
+        :param right_on: column or list of columns
+            right table columns to join on, default to on if None
+        :param :prevailing: if using the prevailing window join
+        :param :leftBound:  the left bound (inclusive) of the window relative to the records in the left table
+        :param :rightBound:  the right bound (inclusive) of the window relative to the records in the left table
+        :return: merged Table object
         """
+
         leftTableName = self.tableName()
         rightTableName = right.tableName() if isinstance(right, Table) else right
 
@@ -523,7 +527,6 @@ class Table(object):
 
     def merge_cross(self, right):
         """
-
         :param right: right table to be cross joined
         :return:
         """
@@ -706,12 +709,9 @@ class Table(object):
         :return: query result as a pandas.DataFrame object
         """
         self._init_schema()
-
         query = self.showSQL()
         df = self.__session.run(query)  # type: DataFrame
-
         return df
-
     toDataFrame = toDF
 
 
@@ -883,8 +883,8 @@ class TablePivotBy(object):
         self.__row = index
         self.__column = column
         self.__val = value
-        self.__t = t;
-        self.__agg = agg;
+        self.__t = t
+        self.__agg = agg
 
     def toDF(self):
         """
@@ -1275,19 +1275,15 @@ class TableContextby(object):
 
     def eachPre(self, args):
         '''
-        apply function args[0] to each pair of ajacent elements of args[1].
+        apply function args[0] to each pair of adjacent elements of args[1].
         see www.dolphindb.com/help/eachPreP.html for more.
         '''
         return self.agg2('eachPre', args)
 
     def toDF(self):
-        """
-        execute sql query on remote dolphindb server
-        :return: query result as a pandas.DataFrame object
-        """
         query = self.showSQL()
         print(query)
-        df = self.__t.session().run(query)  # type: DataFrame
+        df = self.__t.session().run(query)  # type : DataFrame
         return df
 
 

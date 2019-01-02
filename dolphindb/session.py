@@ -2,17 +2,18 @@ import re
 import socket
 import traceback
 import uuid
-from . import date_util as d
 from dolphindb import data_factory, socket_util
 from dolphindb.data_factory import *
 from dolphindb.settings import *
 from dolphindb.type_util import determine_form_type
 from dolphindb.pair import Pair
 from dolphindb.table import Table
-from threading import Thread, Lock
+from threading import Lock
+
 
 def _generate_tablename():
     return "TMP_TBL_" + uuid.uuid4().hex[:8]
+
 
 def _generate_dbname():
     return "TMP_DB_" + uuid.uuid4().hex[:8]+"DB"
@@ -38,6 +39,7 @@ class session(object):
         self.remoteLittleEndian = None
         self.encrypted = False
         self.mutex=Lock()
+        self.socketbuffer=[b'']
         if self.host is not None and self.port is not None:
             self.connect(host, port)
 
@@ -48,17 +50,17 @@ class session(object):
         self.password = password
         self.encrypted = False
         body = "connect\n"
-        msg = "API 0 "+str(len(body))+'\n'+body
+        msg = "API 0 "+str(len(body.encode('utf-8')))+'\n'+body
         try:
             self.socket.connect((host, port))
             sent = socket_util.sendall(self.socket, msg)
             if sent:
-                header = socket_util.readline(self.socket)
+                header = socket_util.readline(self.socket, self.socketbuffer)
                 headers = header.split()
                 if len(headers) != 3:
                     raise Exception('Header Length Incorrect', header)
                 sid, _ , is_remote = headers
-                msg = socket_util.readline(self.socket)
+                msg = socket_util.readline(self.socket, self.socketbuffer)
                 if msg != 'OK':
                     raise Exception('Connection failed', msg, b"")
                 self.sessionID = sid
@@ -78,6 +80,7 @@ class session(object):
             self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.socket.connect((self.host, self.port))
             self.signon()
+            self.socketbuffer[0] = b''
             socket_util.sendall(self.socket, message)
             print ("socket is reconnected\n")
         except Exception:
@@ -100,6 +103,7 @@ class session(object):
             self.run("login('%s','%s')"%(self.userid, self.password))
 
     def close(self):
+        self.socketbuffer = None
         self.socket.close()
         self.host = None
         self.port = None
@@ -129,7 +133,7 @@ class session(object):
         """upload objects"""
         body += "\n" + str(len(objects)) + "\n"
         body += "1" if self.remoteLittleEndian else "0"
-        message = "API " + self.sessionID + " " + str(len(body)) + '\n' + body
+        message = "API " + self.sessionID + " " + str(len(body.encode('utf-8'))) + '\n' + body
         for o in objects:
             pyObj.append(self.write_python_obj(o, message))
         reconnected = False
@@ -140,7 +144,7 @@ class session(object):
             reconnected = self._reconnect(message)
 
         """msg receive"""
-        header = socket_util.readline(self.socket)
+        header = socket_util.readline(self.socket, self.socketbuffer)
         headers = header.split()
         if len(headers) != 3:
             raise Exception('Header Length Incorrect', header)
@@ -149,7 +153,7 @@ class session(object):
                 print ("old sessionID %s is invalid after reconnection; new sessionID is %s\n" % (self.sessionID, headers[0]))
                 self.sessionID = headers[0]
         sid, obj_num, _ = headers
-        msg = socket_util.readline(self.socket)
+        msg = socket_util.readline(self.socket, self.socketbuffer)
         if msg != 'OK' and obj_num==0:
             raise Exception('Server Exception', msg)
         return None
@@ -166,28 +170,28 @@ class session(object):
         if len(args):
             """ function with arguments"""
             body = "function\n" + script
-            body += "\n" + str(len(args)) + "\n";
+            body += "\n" + str(len(args)) + "\n"
             body += "1" if self.remoteLittleEndian else "0"
-            message = "API " + self.sessionID + " " + str(len(body)) + '\n' + body
+            message = "API " + self.sessionID + " " + str(len(body.encode('utf-8'))) + '\n' + body
             for arg in args:
                 objs.append(self.write_python_obj(arg, message))
         else:
             """pure script"""
             body = "script\n" + script
-            message = "API " + self.sessionID + " " + str(len(body)) + '\n' + body
+            message = "API " + self.sessionID + " " + str(len(body.encode('utf-8'))) + '\n' + body
         reconnected = False
         try:
             # print(message)
             # print(objs)
             socket_util.sendall(self.socket, message, objs)
         except IOError:
-            reconnected = self.reconnect(message)
+            reconnected = self._reconnect(message)
 
         """msg receive"""
-        header = socket_util.readline(self.socket)
+        header = socket_util.readline(self.socket, self.socketbuffer)
         while header == "MSG":
-            socket_util.read_string(self.socket)  # python API doesn't support progress listener
-            header = socket_util.readline(self.socket)
+            socket_util.read_string(self.socket, self.socketbuffer)  # python API doesn't support progress listener
+            header = socket_util.readline(self.socket, self.socketbuffer)
 
         headers = header.split()
         if len(headers) != 3:
@@ -199,7 +203,7 @@ class session(object):
                 self.sessionID = headers[0]
 
         sid, obj_num, _ = headers
-        msg = socket_util.readline(self.socket)
+        msg = socket_util.readline(self.socket, self.socketbuffer)
         if msg != 'OK':
             raise Exception('Server Exception', msg)
         if int(obj_num) == 0:
@@ -211,8 +215,7 @@ class session(object):
 
     @property
     def read_dolphindb_obj(self):
-        # print("here")
-        return read_dolphindb_obj_general(self.socket)
+        return read_dolphindb_obj_general(self.socket, self.socketbuffer)
 
     def write_python_obj(self, obj, message):
         (dbForm, dbType) = determine_form_type(obj)
@@ -225,11 +228,11 @@ class session(object):
         # so we handle it seperately
         if dbType == DT_DATETIME64:
             flag = (dbForm << 8) + DT_NANOTIMESTAMP
-            dbType = DT_NANOTIMESTAMP
-            if isinstance(obj, list) or (isinstance(obj, np.ndarray) and dbForm == DF_VECTOR):
-                obj = NanoTimestamp.from_vec_datetime64(obj)
-            else:
-                obj = NanoTimestamp.from_datetime64(obj)
+            # dbType = DT_NANOTIMESTAMP
+            # if isinstance(obj, list) or (isinstance(obj, np.ndarray) and dbForm == DF_VECTOR):
+            #     obj = NanoTimestamp.from_vec_datetime64(obj)
+            # else:
+            #     obj = NanoTimestamp.from_datetime64(obj)
         else:
             flag = (dbForm << 8) + dbType
         tmp += (DATA_PACKER_SCALAR[DT_SHORT](flag))
@@ -266,8 +269,8 @@ class session(object):
             tmp += DATA_PACKER_SCALAR[DT_INT](obj.shape[1])
             tmp += DATA_PACKER2D[dbType](obj)
         elif dbForm == DF_TABLE:
-            tmp += DATA_PACKER_SCALAR[DT_INT](obj.values.shape[0])
-            tmp += DATA_PACKER_SCALAR[DT_INT](obj.values.shape[1])
+            tmp += DATA_PACKER_SCALAR[DT_INT](obj.shape[0])  # obj.values.shape[0] is dramatically low performance 
+            tmp += DATA_PACKER_SCALAR[DT_INT](obj.shape[1])
             tmp += b'\x00'
             tmp += DATA_PACKER[DT_STRING](list(obj.columns))
             for name in obj.columns:
@@ -289,7 +292,7 @@ class session(object):
         body = "function\n" + function_name
         body += "\n" + str(len(args)) + "\n"
         body += "1" if self.remoteLittleEndian else "0"
-        message = "API " + self.sessionID + " " + str(len(body)) + '\n' + body
+        message = "API " + self.sessionID + " " + str(len(body.encode('utf-8'))) + '\n' + body
         for arg in args:
             message = self.write_python_obj(arg, message)
         # else:
@@ -303,13 +306,13 @@ class session(object):
         try:
             socket_util.sendall(self.socket, message)
         except IOError:
-            reconnected = self.reconnect(message)
+            reconnected = self._reconnect(message)
 
         """msg receive"""
-        header = socket_util.readline(self.socket)
+        header = socket_util.readline(self.socket, self.socketbuffer)
         while header == "MSG":
-            socket_util.read_string(self.socket) # python API doesn't support progress listener
-            header = socket_util.readline(self.socket)
+            socket_util.read_string(self.socket, self.socketbuffer) # python API doesn't support progress listener
+            header = socket_util.readline(self.socket, self.socketbuffer)
 
         headers = header.split()
         if len(headers) != 3:
@@ -320,14 +323,14 @@ class session(object):
                 self.sessionID = headers[0]
 
         sid, obj_num, _ = headers
-        msg = socket_util.readline(self.socket)
+        msg = socket_util.readline(self.socket, self.socketbuffer)
         if msg != 'OK':
             raise Exception('Server Exception', msg)
         if int(obj_num) == 0:
             return None
         return self.read_dolphindb_obj
 
-    def table(self, dbPath=None, data=None,  tableAliasName=None, inMem=False, partitions=[], ):
+    def table(self, dbPath=None, data=None,  tableAliasName=None, inMem=False, partitions=None):
         """
 
         :param data: pandas dataframe, python dictionary, or DolphinDB table name
@@ -337,7 +340,18 @@ class session(object):
         :param partitions: the partition column to be loaded into memory. by default, load all
         :return: a Table object
         """
+        if partitions is None:
+            partitions = []
         return Table(dbPath=dbPath, data=data,  tableAliasName=tableAliasName, inMem=inMem, partitions=partitions, s=self)
+
+    def saveTable(self, tbl, dbPath):
+        tblName = tbl.tableName()
+        dbName =  _generate_dbname()
+        s1 = dbName+"=database('"+dbPath+"')"
+        self.run(s1)
+        s2 = "saveTable(%s, %s)" % (dbName, tblName)
+        self.run(s2)
+        return True
 
     def loadText(self,  filename, delimiter=","):
         tableName = _generate_tablename()
@@ -351,7 +365,7 @@ class session(object):
         self.run(runstr)
         return Table(data=tableName, s=self)
 
-    def loadTable(self,tableName,  dbPath=None, partitions=[], memoryMode=False):
+    def loadTable(self,tableName,  dbPath=None, partitions=None, memoryMode=False):
         """
         :param dbPath: DolphinDB table db path
         :param tableName: DolphinDB table name
@@ -359,6 +373,8 @@ class session(object):
         :param memoryMode: loadTable all in ram or not
         :return:a Table object
         """
+        if partitions is None:
+            partitions = []
         if dbPath:
             runstr = '{tableName} = loadTable("{dbPath}", "{data}",{partitions},{inMem})'
             fmtDict = dict()
@@ -460,7 +476,7 @@ class session(object):
         self.run(db + '=database("' + dbPath + '")')
         self.run("dropTable(%s,'%s')" % (db,tableName))
 
-    def loadTextEx(self, dbPath="", tableName="",  partitionColumns=[], filePath="", delimiter=","):
+    def loadTextEx(self, dbPath="", tableName="",  partitionColumns=None, filePath="", delimiter=","):
         """
         :param tableName: loadTextEx table name
         :param dbPath: database path, when dbPath is empty, it is in-memory database
@@ -469,6 +485,8 @@ class session(object):
         :param delimiter:
         :return: a Table object
         """
+        if partitionColumns is None:
+            partitionColumns = []
         isDBPath = True
         if "/" in dbPath or "\\" in dbPath or "dfs://" in dbPath:
             dbstr ='db=database("' + dbPath + '")'

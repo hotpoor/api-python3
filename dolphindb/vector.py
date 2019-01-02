@@ -1,10 +1,11 @@
 from pandas import Series
 
+
 class Vector(object):
     def __init__(self, name=None, data=None, s=None, tableName=None):
         self.__name = name
         self.__tableName = tableName
-        self.__session = s # type: session
+        self.__session = s  # type : session
         if isinstance(data, list):
             self.__vec = Series(data)
         elif isinstance(data, Series):

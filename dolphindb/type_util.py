@@ -1,16 +1,15 @@
-import numpy as np
 import pandas as pd
 from . import date_util as d
-from . import  type_util as t
+from . import type_util as t
 import dolphindb.date_util as dd
 from dolphindb.date_util import *
 from dolphindb.pair import Pair
 
-## python data type to xxdb data type mapping
+
+# python data type to xxdb data type mapping
 DBTYPE = dict()
 DBTYPE[bool] = DT_BOOL
 DBTYPE[int] = DT_INT
-# DBTYPE[int] = DT_LONG
 DBTYPE[float] = DT_DOUBLE
 DBTYPE[str] = DT_STRING
 DBTYPE[d.Date] = DT_DATE
@@ -24,7 +23,8 @@ DBTYPE[d.Timestamp] = DT_TIMESTAMP
 DBTYPE[d.NanoTime] = DT_NANOTIME
 DBTYPE[d.NanoTimestamp] = DT_NANOTIMESTAMP
 
-## numpy dtype.name to xxdb data type mapping
+
+# numpy dtype.name to xxdb data type mapping
 DBTYPE['bool'] = DT_BOOL
 DBTYPE['int32'] = DT_INT
 DBTYPE['int64'] = DT_LONG
@@ -40,8 +40,10 @@ DBTYPE['Datetime'] = DT_DATETIME
 DBTYPE['Timestamp'] = DT_TIMESTAMP
 DBTYPE['NanoTime'] = DT_NANOTIME
 DBTYPE['NanoTimestamp'] = DT_NANOTIMESTAMP
-DBTYPE['datetime64[ns]']=DT_DATETIME64
-DBTYPE['datetime64[D]']=DT_DATETIME64
+DBTYPE['datetime64[ns]'] = DT_DATETIME64
+DBTYPE['datetime64[D]'] = DT_DATETIME64
+
+
 class nan(object):
     def __init__(self, type):
         self.__type = type
@@ -50,10 +52,10 @@ class nan(object):
     def type(self):
         return self.__type
 
-    def __repr__(self): return 'nan'
+    def __repr__(self):
+        return 'nan'
 
-# python doesn't have type-dependent Nan, we have to support different nan types here
-# for temporal types, nan support is built inside class
+
 byteNan = nan(DT_BYTE)
 boolNan = nan(DT_BOOL)
 shortNan = nan(DT_SHORT)
@@ -62,13 +64,15 @@ floatNan = nan(DT_FLOAT)
 doubleNan = nan(DT_DOUBLE)
 
 
-def swap(val, dt_type=None):
-    # when write to xxdb, for a null object of a given type, returns xxdb representation
+def swap_toxxdb(val):
     if isinstance(val, nan):
         return DBNAN[val.type]
-    # when read number types from xxdb, if xxdb object is nan, create a null instance.
-    if dt_type and val == DBNAN[dt_type]:
-        return nan(dt_type)  #nan(dt_type) : changed from nan(dt_type) to np.nan as this is used for numpy
+    return val
+
+
+def swap_fromxxdb(val, dt_type):
+    if val == DBNAN[dt_type]:
+        return nan(dt_type)
     return val
 
 
@@ -86,10 +90,6 @@ def  is_scalar(obj):
 
 
 def determine_form_type(obj):
-    """
-    determine the database form and type for the given python object
-    :return: a tuple
-    """
     if isinstance(obj, list):
         dbForm = DF_VECTOR
 
@@ -144,7 +144,6 @@ def determine_form_type(obj):
         dbType = DBTYPE[obj.type]
     elif (isinstance(obj, bool)
         or isinstance(obj, int)
-        # or isinstance(obj, long)
         or isinstance(obj, float)
         or isinstance(obj, str)
         or isinstance(obj, d.Date)
@@ -163,4 +162,4 @@ def determine_form_type(obj):
         dbType = obj.type
     else:
         raise RuntimeError("Sending type " + type(obj).__name__ + " is not supported yet!")
-    return (dbForm, dbType)
+    return dbForm, dbType
