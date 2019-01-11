@@ -284,13 +284,9 @@ class NanoTimestamp(temporal):
 
     @classmethod
     def from_datetime64(cls,dt64):
-        # with warnings.catch_warnings():
-        #     warnings.simplefilter("ignore")
-            if not dt64.item():
-                # print(cls(DBNAN[DT_NANOTIMESTAMP]))
-                return cls(DBNAN[DT_NANOTIMESTAMP])
-        # print(cls(dt64.astype(object)))
-        return cls(int.from_bytes(dt64.data, byteorder='little')
+        if not dt64.item():
+            return cls(DBNAN[DT_NANOTIMESTAMP])
+        return cls(int.from_bytes(dt64.data, byteorder='little'))
 
     @classmethod
     def from_vec_datetime64(cls, vec):
