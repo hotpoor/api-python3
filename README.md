@@ -47,7 +47,7 @@ success = s.connect('localhost', 8848, "admin","123456")
     
 if success:
     obj = s.run("Your XXDB script") #run dolphinDB script
-    print obj
+    print(obj)
 ```
 
 For more examples, please refer to python api tutorial:
