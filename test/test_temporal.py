@@ -15,6 +15,10 @@ class TestTemporal(unittest.TestCase):
         vc =xx.run('2018.03.14')
         self.assertEqual(vc.to_date(), date(2018, 3, 14))
 
+    def test_get_date_null(self):
+        vc = xx.run("00d")
+        self.assertTrue(np.isnan(vc.to_date()))
+
     def test_upload_date(self):
         vdt = date(2018, 3, 14)
         xx.upload({"up_variable": Date.from_date(vdt)})
@@ -24,6 +28,11 @@ class TestTemporal(unittest.TestCase):
     def test_get_vector_date(self):
         vc = xx.run("2018.03.01 2017.04.02 2016.05.03")
         self.assertEqual(vc[1].to_date(), date(2017, 4, 2))
+
+    def test_get_vector_date_null(self):
+        vc = xx.run("2018.03.01 NULL 2016.05.03")
+        self.assertEqual(vc[0].to_date(), date(2018, 3, 1))
+        self.assertTrue(np.isnan(vc[1].to_date()))
 
     def test_get_vector_date_withnull(self):
         vc = xx.run("[2018.03.01,,2016.05.03]")

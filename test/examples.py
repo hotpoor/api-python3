@@ -8,18 +8,18 @@ from dolphindb import *
 # from xxdb_server import HOST, PORT
 rs = lambda s: s.replace(' ', '')
 HOST = "localhost"
-PORT = 8801
+PORT = 8080
 s = ddb.session(HOST, PORT)
 s = session()
 s.connect(HOST,PORT,"admin","123456")
 WORK_DIR = "C:/Tutorials_EN/data"
 
 
-# s.database('db',partitionType=VALUE, partitions=["GFGC","EWST", "EGAS"], dbPath="")
-# trade=s.loadTextEx(dbPath="db", partitionColumns=["sym"], tableName='trade', filePath=WORK_DIR + "/example.csv")
-# print(trade.toDF())
+s.database('db',partitionType=VALUE, partitions=["GFGC","EWST", "EGAS"], dbPath="")
+trade=s.loadTextEx(dbPath="db", partitionColumns=["sym"], tableName='trade', filePath=WORK_DIR + "/example.csv")
+print(trade.toDF())
 #
-# print(s.run('wavg( [100, 60, 300], [1, 1.5, 2])'))
+print(s.run('wavg( [100, 60, 300], [1, 1.5, 2])'))
 #
 # v1=s.run("v1=3 1 2 5 7; sort v1")
 # print(v1)
@@ -57,7 +57,7 @@ if s.existsDatabase(WORK_DIR+"/valuedb"  or os.path.exists(WORK_DIR+"/valuedb"))
 s.database(dbName='db', partitionType=VALUE, partitions=["AMZN","NFLX", "NVDA"], dbPath=WORK_DIR+"/valuedb")
 t = s.loadTextEx("db",  tableName='trade',partitionColumns=["TICKER"], filePath=WORK_DIR + "/example.csv")
 print(t.top(5).toDF())
-print(t.where('TICKER=`AMZN').where('date>2016.12.15').sort('date').selectAsVector('prc'))
+print(t.where('TICKER=`AMZN').where('date>2016.12.15').sort('date'))
 
 trade = s.loadTable(dbPath=WORK_DIR+"/valuedb", tableName="trade", memoryMode=True)
 print(trade.select(['ticker','date','bid','ask','prc','vol']).top(5).toDF())
@@ -77,7 +77,7 @@ df= s.loadTable(dbPath=WORK_DIR+"/valuedb", tableName="trade").select("TICKER, m
 print(df)
 
 t= s.loadText(filename=WORK_DIR+"/example.csv")
-wjt = t.merge_window(t, -10, -5, aggFunctions='<sum(VOL)>', on=["TICKER","date"], prevailing=True).toDF()
+wjt = t.merge_window(t, -10, -5, aggFunctions='sum(VOL)', on=["TICKER","date"], prevailing=True).toDF()
 print(wjt)
 
 trade = s.table(dbPath=WORK_DIR+"/valuedb", data="trade")
@@ -90,11 +90,11 @@ trade = s.table(dbPath=WORK_DIR+"/valuedb", data="trade")
 # trade = s.table(dbPath=WORK_DIR+"/valuedb", data="trade")
 # print(trade.rows)
 
-trade = s.table(dbPath=WORK_DIR+"/valuedb", data="trade")
-trade = trade.update(["VOL"],["999999"]).where("TICKER=`AMZN").where(["date=2015.12.16"]).execute()
-trade = s.table(dbPath=WORK_DIR+"/valuedb", data="trade")
-t1=trade.where("ticker=`AMZN").where("VOL=999999")
-print(t1.toDF())
+# trade = s.table(dbPath=WORK_DIR+"/valuedb", data="trade")
+# trade = trade.update(["VOL"],["999999"]).where("TICKER=`AMZN").where(["date=2015.12.16"]).execute()
+# trade = s.table(dbPath=WORK_DIR+"/valuedb", data="trade")
+# t1=trade.where("ticker=`AMZN").where("VOL=999999")
+# print(t1.toDF())
 
 
 print("here")
@@ -163,7 +163,7 @@ print(trade.merge_asof(t1,on=["date"]).top(20).toDF())
 trade = s.table(dbPath=WORK_DIR+"/valuedb", data="trade", inMem=True)
 trade = trade.update(["VOL"],["999999"]).where("TICKER=`AMZN").where(["date=2015.12.16"]).execute()
 t1=trade.where("ticker=`AMZN").where("VOL=999999")
-print(t1.count())
+print(t1.rows)
 
 # 16
 

@@ -12,7 +12,7 @@ cumLeapMonthDays = [0, 31, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335, 366]
 monthDays = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
 leapMonthDays = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
 START_DATE = date(2000, 0o01, 0o01)
-DEFAULT_YEAR = 1970
+DEFAULT_YEAR=1970
 
 # class Bool(object):
 #     def __init__(self, val):
@@ -284,13 +284,9 @@ class NanoTimestamp(temporal):
 
     @classmethod
     def from_datetime64(cls,dt64):
-        # with warnings.catch_warnings():
-        #     warnings.simplefilter("ignore")
-            if not dt64.item():
-                # print(cls(DBNAN[DT_NANOTIMESTAMP]))
-                return cls(DBNAN[DT_NANOTIMESTAMP])
-        # print(cls(dt64.astype(object)))
-        return cls(int.from_bytes(dt64.data, byteorder='little')
+        if not dt64.item():
+            return cls(DBNAN[DT_NANOTIMESTAMP])
+        return cls(int.from_bytes(dt64.data, byteorder='little'))
 
     @classmethod
     def from_vec_datetime64(cls, vec):

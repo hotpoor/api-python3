@@ -10,12 +10,11 @@ from dolphindb import *
 
 # from xxdb_server import HOST, PORT
 
-HOST = "172.16.95.128"
-PORT = 8921
+
 if __name__ == '__main__':
 
     conn = ddb.session()
-    success = conn.connect(HOST, PORT)
+    success = conn.connect("localhost", 8080)
     id = 1;
     if success:
         # print("hello")

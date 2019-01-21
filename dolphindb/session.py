@@ -2,6 +2,7 @@ import re
 import socket
 import traceback
 import uuid
+import copy
 from dolphindb import data_factory, socket_util
 from dolphindb.data_factory import *
 from dolphindb.settings import *
@@ -40,8 +41,22 @@ class session(object):
         self.encrypted = False
         self.mutex=Lock()
         self.socketbuffer=[b'']
+        self.nullMap = {DT_VOID: np.nan, DT_BOOL: np.nan, DT_BYTE: np.nan, DT_SHORT: np.nan,
+                        DT_INT: np.nan, DT_LONG: np.nan, DT_FLOAT: np.nan, DT_DOUBLE: np.nan,
+                        DT_SYMBOL: '', DT_STRING: ''}
+
         if self.host is not None and self.port is not None:
             self.connect(host, port)
+
+    def setNullMap(self, nullMap):
+        if not isinstance(nullMap, dict):
+            raise ValueError("nullMap must be a dict")
+        for k,v in nullMap.items():
+            if k in [DT_VOID, DT_BOOL, DT_BYTE, DT_SHORT, DT_INT, DT_LONG, DT_FLOAT, DT_DOUBLE, DT_SYMBOL, DT_STRING]:
+                self.nullMap[k] = v
+
+    def getNullMap(self):
+        return copy.deepcopy(self.nullMap)
 
     def connect(self, host, port, userid="", password=""):
         self.host = host
@@ -135,7 +150,7 @@ class session(object):
         body += "1" if self.remoteLittleEndian else "0"
         message = "API " + self.sessionID + " " + str(len(body.encode('utf-8'))) + '\n' + body
         for o in objects:
-            pyObj.append(self.write_python_obj(o, message))
+            pyObj.append(self.write_python_obj(o))
         reconnected = False
         try:
             totalsent = socket_util.sendall(self.socket, message,pyObj)
@@ -174,7 +189,7 @@ class session(object):
             body += "1" if self.remoteLittleEndian else "0"
             message = "API " + self.sessionID + " " + str(len(body.encode('utf-8'))) + '\n' + body
             for arg in args:
-                objs.append(self.write_python_obj(arg, message))
+                objs.append(self.write_python_obj(arg))
         else:
             """pure script"""
             body = "script\n" + script
@@ -215,9 +230,9 @@ class session(object):
 
     @property
     def read_dolphindb_obj(self):
-        return read_dolphindb_obj_general(self.socket, self.socketbuffer)
+        return read_dolphindb_obj_general(self.socket, self.socketbuffer, self.nullMap)
 
-    def write_python_obj(self, obj, message):
+    def write_python_obj(self, obj, typeMsg=None):
         (dbForm, dbType) = determine_form_type(obj)
         tmp = b""
 
@@ -234,26 +249,28 @@ class session(object):
             # else:
             #     obj = NanoTimestamp.from_datetime64(obj)
         else:
-            flag = (dbForm << 8) + dbType
+            flag = (dbForm << 8) + (typeMsg if typeMsg else dbType)
+
         tmp += (DATA_PACKER_SCALAR[DT_SHORT](flag))
 
         if dbType == DT_ANY and isinstance(obj, list):  # any vector written
             tmp += DATA_PACKER_SCALAR[DT_INT](len(obj))
             tmp += DATA_PACKER_SCALAR[DT_INT](1)
             for val in obj:
-                tmp += self.write_python_obj(val, message)
+                tmp += self.write_python_obj(val)
         elif isinstance(obj, list):  # vector written from list
             tmp += DATA_PACKER_SCALAR[DT_INT](len(obj))
             tmp += DATA_PACKER_SCALAR[DT_INT](1)
             for val in obj:
                 tmp += DATA_PACKER_SCALAR[dbType](val)
         elif isinstance(obj, dict):
-            tmp += self.write_python_obj(list(obj.keys()), message)
-            tmp += self.write_python_obj(list(obj.values()), message)
+            tmp += self.write_python_obj(list(obj.keys()))
+            tmp += self.write_python_obj(list(obj.values()))
         elif isinstance(obj, np.ndarray) and dbForm == DF_VECTOR:  # vector written from numpy array
             tmp += DATA_PACKER_SCALAR[DT_INT](obj.size)
             tmp += DATA_PACKER_SCALAR[DT_INT](1)
-            tmp += DATA_PACKER[dbType](obj)
+            # tmp += DATA_PACKER[dbType](obj)
+            tmp += DATA_PACKER[typeMsg if typeMsg else dbType](obj)
         elif isinstance(obj, Pair):
             tmp += DATA_PACKER_SCALAR[DT_INT](2)
             tmp += DATA_PACKER_SCALAR[DT_INT](1)
@@ -261,7 +278,7 @@ class session(object):
             tmp += DATA_PACKER_SCALAR[dbType](obj.b)
         elif dbForm == DF_SET:
             npArray = np.array((list(obj)))
-            tmp += self.write_python_obj(npArray, message)
+            tmp += self.write_python_obj(npArray)
         elif dbForm == DF_MATRIX:
             tmp += b'\x00'  # no row and colum labels
             tmp += (DATA_PACKER_SCALAR[DT_SHORT](flag))  # a weird interface for matrix
@@ -269,12 +286,13 @@ class session(object):
             tmp += DATA_PACKER_SCALAR[DT_INT](obj.shape[1])
             tmp += DATA_PACKER2D[dbType](obj)
         elif dbForm == DF_TABLE:
-            tmp += DATA_PACKER_SCALAR[DT_INT](obj.shape[0])  # obj.values.shape[0] is dramatically low performance 
+            tmp += DATA_PACKER_SCALAR[DT_INT](obj.shape[0])
             tmp += DATA_PACKER_SCALAR[DT_INT](obj.shape[1])
             tmp += b'\x00'
             tmp += DATA_PACKER[DT_STRING](list(obj.columns))
+            tmpTypes = getattr(obj, '__2xdbColumnTypes__', dict())
             for name in obj.columns:
-                tmp += self.write_python_obj(obj[name].values, message)
+                tmp += self.write_python_obj(obj[name].values, tmpTypes.get(name))
         else:
             tmp += (DATA_PACKER_SCALAR[dbType](obj))
         return tmp
@@ -294,7 +312,7 @@ class session(object):
         body += "1" if self.remoteLittleEndian else "0"
         message = "API " + self.sessionID + " " + str(len(body.encode('utf-8'))) + '\n' + body
         for arg in args:
-            message = self.write_python_obj(arg, message)
+            message = self.write_python_obj(arg)
         # else:
         #     """pure script"""
         #     body = "script\n"+function_name

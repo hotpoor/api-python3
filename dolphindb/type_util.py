@@ -44,35 +44,40 @@ DBTYPE['datetime64[ns]'] = DT_DATETIME64
 DBTYPE['datetime64[D]'] = DT_DATETIME64
 
 
-class nan(object):
-    def __init__(self, type):
-        self.__type = type
+# class nan(object):
+#     def __init__(self, type):
+#         self.__type = type
+#
+#     @property
+#     def type(self):
+#         return self.__type
+#
+#     def __repr__(self):
+#         return 'nan'
+#
+#
+# byteNan = nan(DT_BYTE)
+# boolNan = nan(DT_BOOL)
+# shortNan = nan(DT_SHORT)
+# intNan = nan(DT_INT)
+# floatNan = nan(DT_FLOAT)
+# doubleNan = nan(DT_DOUBLE)
 
-    @property
-    def type(self):
-        return self.__type
 
-    def __repr__(self):
-        return 'nan'
+def swap_toxxdb_int(val, dt_type):
+    if pd.isna(val):
+        return DBNAN[dt_type]
+    return int(val)
 
-
-byteNan = nan(DT_BYTE)
-boolNan = nan(DT_BOOL)
-shortNan = nan(DT_SHORT)
-intNan = nan(DT_INT)
-floatNan = nan(DT_FLOAT)
-doubleNan = nan(DT_DOUBLE)
-
-
-def swap_toxxdb(val):
-    if isinstance(val, nan):
-        return DBNAN[val.type]
+def swap_toxxdb(val, dt_type):
+    if pd.isna(val):
+        return DBNAN[dt_type]
     return val
 
-
-def swap_fromxxdb(val, dt_type):
+def swap_fromxxdb(val, dt_type, nullMap):
     if val == DBNAN[dt_type]:
-        return nan(dt_type)
+        return nullMap[dt_type]              # TODO: consider null value in numpy
+        # return nan(dt_type)
     return val
 
 
@@ -90,24 +95,30 @@ def  is_scalar(obj):
 
 
 def determine_form_type(obj):
+
     if isinstance(obj, list):
         dbForm = DF_VECTOR
-
         if len(obj):
-            try:
-                dbType = obj[0].type if isinstance(obj[0],t.nan) else DBTYPE[type(obj[0])]
-                for val in obj:
-                    dbType2 = val.type if isinstance(val, t.nan) else DBTYPE[type(val)]
-                    if dbType != DT_ANY and dbType2 != dbType:
-                        dbType = DT_ANY
-                        break
-            except KeyError:
-                dbType = obj[0].dtype.name if isinstance(obj[0], t.nan) else DBTYPE[obj[0].dtype.name]
-                for val in obj:
-                    dbType2 = val.dtype.name if isinstance(val, t.nan) else DBTYPE[val.dtype.name]
-                    if dbType != DT_ANY and dbType2 != dbType:
-                        dbType = DT_ANY
-                        break
+            dbType = DBTYPE[type(obj[0])]
+            for val in obj:
+                dbType2 = DBTYPE[type(val)]
+                if dbType != DT_ANY and dbType2 != dbType:
+                    dbType = DT_ANY
+                    break
+            # try:
+            #     dbType = DBTYPE[type(obj[0])]
+            #     for val in obj:
+            #         dbType2 = DBTYPE[type(val)]
+            #         if dbType != DT_ANY and dbType2 != dbType:
+            #             dbType = DT_ANY
+            #             break
+            # except KeyError:
+            #     dbType = obj[0].dtype.name if isinstance(obj[0], t.nan) else DBTYPE[obj[0].dtype.name]
+            #     for val in obj:
+            #         dbType2 = val.dtype.name if isinstance(val, t.nan) else DBTYPE[val.dtype.name]
+            #         if dbType != DT_ANY and dbType2 != dbType:
+            #             dbType = DT_ANY
+            #             break
         else:
             raise RuntimeError("function argument with list type cannot be empty")
     elif isinstance(obj, dict):
@@ -120,6 +131,7 @@ def determine_form_type(obj):
         else:
             raise RuntimeError("function argument with dict type cannot be empty")
     elif isinstance(obj, np.ndarray):
+
         if obj.ndim > 2: # we need further check each element should be just a scalar
             raise RuntimeError("only support rank 1 or 2 numpy array!")
         dbForm = DF_VECTOR if obj.ndim == 1 else DF_MATRIX
@@ -127,6 +139,31 @@ def determine_form_type(obj):
             dbType = DBTYPE[type(obj[0])] if obj.ndim ==1 else DBTYPE[type(obj[0][0])]
         else:
             dbType = DBTYPE[obj.dtype.name] if not obj.dtype.name.startswith('str') else DBTYPE['string']
+
+        # use for testing, but the above code is just ok for now, consider refactoring
+
+        # if obj.ndim > 2: # we need further check each element should be just a scalar
+        #     raise RuntimeError("only support rank 1 or 2 numpy array!")
+        # dbForm = DF_VECTOR if obj.ndim == 1 else DF_MATRIX      # TODO: consider null
+        # if obj.ndim == 1:
+        #     if obj.dtype.name == 'object':
+        #         if isinstance(obj[0], nan):
+        #             dbType = obj[0].type
+        #         else:
+        #             dbType = type(obj[0])
+        #         dbType = DBTYPE['string']
+        #     else:
+        #         dbType = DBTYPE[obj.dtype.name] if not obj.dtype.name.startswith('str') else DBTYPE['string']
+        # else:
+        #     if obj.dtype.name == 'object':
+        #         if isinstance(obj[0][0], nan):
+        #             dbType = obj[0].type
+        #         else:
+        #             dbType = type(obj[0][0])
+        #         dbType = DBTYPE['string']
+        #     else:
+        #         dbType = DBTYPE[obj.dtype.name] if not obj.dtype.name.startswith('str') else DBTYPE['string']
+
     elif isinstance(obj, pd.core.frame.DataFrame):
         dbForm = DF_TABLE
         dbType = DT_DICTIONARY
@@ -157,9 +194,29 @@ def determine_form_type(obj):
         or isinstance(obj, d.NanoTimestamp)):
         dbForm = DF_SCALAR
         dbType = DBTYPE[type(obj)]
-    elif (isinstance(obj, t.nan)):
+    elif (isinstance(obj, np.nan)):
         dbForm = DF_SCALAR
-        dbType = obj.type
+        dbType = type(obj)
     else:
         raise RuntimeError("Sending type " + type(obj).__name__ + " is not supported yet!")
     return dbForm, dbType
+
+
+def overwriteTypes(df, newTypes):
+    if not hasattr(df, '__2xdbColumnTypes__'):
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            df.__2xdbColumnTypes__ = dict()
+    for k,v in newTypes.items():
+        df.__2xdbColumnTypes__[k] = v
+
+
+def nullMapTemplate_allZero():
+    return {DT_VOID: np.nan, DT_BOOL: False, DT_BYTE: 0, DT_SHORT: 0,
+            DT_INT: 0, DT_LONG: 0, DT_FLOAT: 0.0, DT_DOUBLE: 0.0,
+            DT_SYMBOL: '', DT_STRING: ''}
+
+def nullMapTemplate_default():
+    return {DT_VOID: np.nan, DT_BOOL: np.nan, DT_BYTE: np.nan, DT_SHORT: np.nan,
+            DT_INT: np.nan, DT_LONG: np.nan, DT_FLOAT: np.nan, DT_DOUBLE: np.nan,
+            DT_SYMBOL: '', DT_STRING: ''}
