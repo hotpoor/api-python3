@@ -6,7 +6,7 @@
 Before Running the scripts,please have python packages numpy and pandas installed.
 
 #### Method 1:
-please download the 64bit python 3.6 version of anaconda, which contains python and all packages we need to run xxdb api python scripts
+please download the 64bit python 3.6 version of anaconda, which contains python and all packages we need to run DolphinDB api python scripts
 https://www.continuum.io/downloads
 
 
@@ -46,7 +46,7 @@ s = ddb.session()
 success = s.connect('localhost', 8848, "admin","123456") 
     
 if success:
-    obj = s.run("Your XXDB script") #run dolphinDB script
+    obj = s.run("Your DolphinDB script") #run dolphinDB script
     print(obj)
 ```
 
