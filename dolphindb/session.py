@@ -3,6 +3,10 @@ import socket
 import traceback
 import uuid
 import copy
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import padding
+import base64
 from dolphindb import data_factory, socket_util
 from dolphindb.data_factory import *
 from dolphindb.settings import *
@@ -38,12 +42,13 @@ class session(object):
         self.password=password
         self.sessionID = None
         self.remoteLittleEndian = None
-        self.encrypted = False
+        self.encrypted = True
         self.mutex=Lock()
         self.socketbuffer=[b'']
         self.nullMap = {DT_VOID: np.nan, DT_BOOL: np.nan, DT_BYTE: np.nan, DT_SHORT: np.nan,
                         DT_INT: np.nan, DT_LONG: np.nan, DT_FLOAT: np.nan, DT_DOUBLE: np.nan,
                         DT_SYMBOL: '', DT_STRING: ''}
+        self.initScript = ''
 
         if self.host is not None and self.port is not None:
             self.connect(host, port)
@@ -58,12 +63,22 @@ class session(object):
     def getNullMap(self):
         return copy.deepcopy(self.nullMap)
 
+    # initScript will be run every time _reconnect is called
+    # client is strongly advised to test the initScript before setting
+    def setInitScript(self, script):
+        if len(script) == 0:
+            raise Exception('Empty initScript')
+        self.initScript = script
+
+    def getInitScript(self):
+        return self.initScript
+
     def connect(self, host, port, userid="", password=""):
         self.host = host
         self.port = port
         self.userid = userid
         self.password = password
-        self.encrypted = False
+        self.encrypted = True
         body = "connect\n"
         msg = "API 0 "+str(len(body.encode('utf-8')))+'\n'+body
         try:
@@ -91,11 +106,14 @@ class session(object):
 
     def _reconnect(self, message):
         try:
-            print ("socket connection was lost; attemping to reconnect to %s : %s\n" % (self.host, self.port))
+            print("socket connection was lost; attemping to reconnect to %s : %s\n" % (self.host, self.port))
             self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.socket.connect((self.host, self.port))
             self.signon()
             self.socketbuffer[0] = b''
+            if len(self.initScript) != 0:
+                print("succeeded to reconnect; run initScript: " + self.initScript)
+                self.run(self.initScript)
             socket_util.sendall(self.socket, message)
             print ("socket is reconnected\n")
         except Exception:
@@ -103,7 +121,7 @@ class session(object):
             raise
         return True
 
-    def login(self,userid, password, enableEncryption):
+    def login(self,userid, password, enableEncryption=True):
         self.mutex.acquire()
         try:
             self.userid = userid
@@ -115,7 +133,18 @@ class session(object):
 
     def signon(self):
         if len(self.userid) and len(self.password):
-            self.run("login('%s','%s')"%(self.userid, self.password))
+            if(self.encrypted):
+                keyCode = self.run("getDynamicPublicKey()")
+                pKey = serialization.load_pem_public_key(keyCode.encode('utf-8'), default_backend())
+                encryptedUserid = pKey.encrypt(self.userid.encode('utf-8'), padding.PKCS1v15())
+                encryptedPassword = pKey.encrypt(self.password.encode('utf-8'), padding.PKCS1v15())
+                self.run("login",
+                         base64.encodebytes(encryptedUserid).decode('utf-8'),
+                         base64.encodebytes(encryptedPassword).decode('utf-8'),
+                         True)
+            else:
+                self.run("login('%s','%s')"%(self.userid, self.password))
+
 
     def close(self):
         self.socketbuffer = None

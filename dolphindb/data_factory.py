@@ -349,12 +349,12 @@ DATA_UNPACKER_SCALAR[DT_DICTIONARY] = lambda x, y, nullMap: None
 DATA_UNPACKER_SCALAR[DT_OBJECT] = lambda x, y, nullMap: None
 
 DATA_UNPACKER = dict()
-DATA_UNPACKER[DT_VOID] = lambda x, y, z, nullMap: list(map(lambda z: np.where(z == DBNAN[DT_BOOL], nullMap[DT_VOID], z), [np.array(Struct(str(y)+'b').unpack(recvall(x, DATA_SIZE[DT_BOOL]*y, z)))]))[0]
-DATA_UNPACKER[DT_BOOL] = lambda x, y, z, nullMap: list(map(lambda z: np.where(z == DBNAN[DT_BOOL], nullMap[DT_BOOL], z), [np.array(Struct(str(y)+'b').unpack(recvall(x, DATA_SIZE[DT_BOOL]*y, z)))]))[0]
-DATA_UNPACKER[DT_BYTE] = lambda x, y, z, nullMap: list(map(lambda z: np.where(z == DBNAN[DT_BYTE], nullMap[DT_BYTE], z), [np.array(Struct(str(y)+'b').unpack(recvall(x, DATA_SIZE[DT_BYTE]*y, z)))]))[0]
-DATA_UNPACKER[DT_SHORT] = lambda x, y, z, nullMap: list(map(lambda z: np.where(z == DBNAN[DT_SHORT], nullMap[DT_SHORT], z), [np.array(Struct(endianness(str(y)+'h')).unpack(recvall(x, DATA_SIZE[DT_SHORT]*y, z)))]))[0]
-DATA_UNPACKER[DT_INT] = lambda x, y, z, nullMap: list(map(lambda z: np.where(z == DBNAN[DT_INT], nullMap[DT_INT], z), [np.array(Struct(endianness(str(y)+'i')).unpack(recvall(x, DATA_SIZE[DT_INT]*y, z)))]))[0]
-DATA_UNPACKER[DT_LONG] = lambda x, y, z, nullMap: list(map(lambda z: np.where(z == DBNAN[DT_LONG], nullMap[DT_LONG], z), [np.array(Struct(endianness(str(y)+'q')).unpack(recvall(x, DATA_SIZE[DT_LONG]*y, z)))]))[0]
+DATA_UNPACKER[DT_VOID] = lambda x, y, z, nullMap: list(map(lambda z: swap_fromxxdb(z, DT_BOOL, nullMap), Struct(str(y)+'b').unpack(recvall(x, DATA_SIZE[DT_BOOL]*y, z))))
+DATA_UNPACKER[DT_BOOL] = lambda x, y, z, nullMap: Struct(str(y)+'b').unpack(recvall(x, DATA_SIZE[DT_BOOL]*y, z))
+DATA_UNPACKER[DT_BYTE] = lambda x, y, z, nullMap: list(map(lambda z: swap_fromxxdb(z, DT_BYTE, nullMap), Struct(str(y)+'b').unpack(recvall(x, DATA_SIZE[DT_BYTE]*y, z))))
+DATA_UNPACKER[DT_SHORT] = lambda x, y, z, nullMap: list(map(lambda z: swap_fromxxdb(z, DT_SHORT, nullMap), Struct(endianness(str(y)+'h')).unpack(recvall(x, DATA_SIZE[DT_SHORT]*y, z))))
+DATA_UNPACKER[DT_INT] = lambda x, y, z, nullMap: list(map(lambda z: swap_fromxxdb(z, DT_INT, nullMap), Struct(endianness(str(y)+'i')).unpack(recvall(x, DATA_SIZE[DT_INT]*y, z))))
+DATA_UNPACKER[DT_LONG] = lambda x, y, z, nullMap: list(map(lambda z: swap_fromxxdb(z, DT_LONG, nullMap), Struct(endianness(str(y)+'q')).unpack((recvall(x, DATA_SIZE[DT_LONG]*y, z)))))
 DATA_UNPACKER[DT_FLOAT] = lambda x, y, z, nullMap: list(map(lambda z: np.where(z == DBNAN[DT_FLOAT], nullMap[DT_FLOAT], z), [np.array(Struct(endianness(str(y)+'f')).unpack(recvall(x, DATA_SIZE[DT_FLOAT]*y, z)))]))[0]
 DATA_UNPACKER[DT_DOUBLE] = lambda x, y, z, nullMap: list(map(lambda z: np.where(z == DBNAN[DT_DOUBLE], nullMap[DT_DOUBLE], z), [np.array(Struct(endianness(str(y)+'d')).unpack((recvall(x, DATA_SIZE[DT_DOUBLE]*y, z))))]))[0]
 
